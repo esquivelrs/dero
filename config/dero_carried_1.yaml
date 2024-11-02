@@ -1,0 +1,89 @@
+/radar/scekf_dero_node:
+  ros__parameters:
+    est_save_dir: "/home/ros/rosbags_shared/dero.txt"
+
+    imu_body_rotation_offset_x: 0.0
+    imu_body_rotation_offset_y: 0.0
+    imu_body_rotation_offset_z: 0.0
+
+    imu_radar_position_offset_x: 0.05
+    imu_radar_position_offset_y: 0.08
+    imu_radar_position_offset_z: 0.07
+
+    imu_radar_quaternion_offset_w: 0.93354
+    imu_radar_quaternion_offset_x: -0.00502
+    imu_radar_quaternion_offset_y: 0.01127
+    imu_radar_quaternion_offset_z: -0.35827
+    gravity: 9.81
+
+    P_init_position: 1.0e-10
+    P_init_velocity: 1.0e-10
+    P_init_attitude_XY: 1.0e-10
+    P_init_attitude_Z: 1.0e-10
+    P_init_accel_bias: 0.02
+    P_init_gyro_bias: 5.2360e-8
+    P_init_radar_scale: 1.0e-6
+
+    velocity_random_walk: 0.03
+    angular_random_walk: 5.4547e-4
+    accel_bias_random_walk: 0.00001
+    gyro_bias_random_walk: 6.3985e-5
+    radar_scale_random_walk: 1.0e-6
+
+    use_radar: true
+    use_dr_structure: true
+    use_cloning: true
+    imu_only: false
+    groundtruth_included: false
+    radar_outlier_reject: true
+    ros2_pub_rate: 30
+    coarse_alignment_window_size: 5000
+
+    min_distance: 0.25
+    max_distance: 100.0
+    min_db: 3.0
+    elevation_threshold: 60.0
+    azimuth_threshold: 60.0
+    velocity_correction_factor: 1.0
+    filter_min_z: -100.0
+    filter_max_z: 100.0
+    zero_velocity_threshold: 0.05
+    sigma_zero_velocity_x: 0.025
+    sigma_zero_velocity_y: 0.025
+    sigma_zero_velocity_z: 0.025
+    allowed_outlier_percentage: 0.25
+    max_sigma_x: 0.2
+    max_sigma_y: 0.15
+    max_sigma_z: 0.2
+    max_r_cond: 1.0e3
+
+    use_ransac: true
+    outlier_prob: 0.5
+    success_prob: 0.999
+    N_ransac_points: 3
+    inlier_threshold: 0.15
+
+    sigma_offset_radar_x: 0.1
+    sigma_offset_radar_y: 0.1
+    sigma_offset_radar_z: 0.1
+    outlier_percentil_radar: 0.1
+
+    use_odr: true
+    min_speed_odr: 4.0
+    sigma_v_d: 0.125
+    model_noise_offset_deg: 2.0
+    model_noise_scale_deg: 10.0
+    odr_inlier_threshold: 10
+
+    max_corres_dis: 0.5
+    max_iter: 500
+    transform_eps: 0.00000001
+    euclidean_fit_eps: 0.00000001
+    cloning_window_size: 3
+    window_slicing: false
+    ransac_outlier_reject_thres: 0.01
+    icp_std_x: 0.5
+    icp_std_y: 0.5
+    icp_std_z: 0.5
+    accel_angle_adapt: 2.0
+

@@ -27,76 +27,36 @@ RadarEstimator::RadarEstimator() {} // RadarVelocityEstimator
 bool RadarEstimator::Process(const sensor_msgs::msg::PointCloud2 &radar_PCL2_msg,
                              const RadarVelocityEstimatorParam   &param) {
 
-  auto                  radar_PCL_msg(new pcl::PointCloud<RadarPointCloudType>);
-  std::set<std::string> fields;
-  std::string           fields_str = "";
 
-  for (const auto &field : radar_PCL2_msg.fields) {
-    fields.emplace(field.name);
-    fields_str += field.name + ", ";
-  }
-
-  // Type checking
-  if (fields.find("x") != fields.end() && fields.find("y") != fields.end() && fields.find("z") != fields.end() &&
-      fields.find("snr_db") != fields.end() && fields.find("noise_db") != fields.end() &&
-      fields.find("v_doppler_mps") != fields.end()) {
-
-    pcl::PCLPointCloud2 pcl_pc2;
-    pcl_conversions::toPCL(radar_PCL2_msg, pcl_pc2);
-    pcl::fromPCLPointCloud2(pcl_pc2, *radar_PCL_msg);
-
-    for (auto &p : *radar_PCL_msg) {
-      p.range = p.getVector3fMap().norm();
-    }
-
-    radar_info_ = "Detected supported (IWR1443BOOST) radar point cloud type!";
-
-  } else if (fields.find("Number_Of_Objects") != fields.end() && fields.find("Cycle_Duration") != fields.end() &&
-             fields.find("Range") != fields.end() && fields.find("Azimuth") != fields.end() &&
-             fields.find("Speed_Radial") != fields.end() && fields.find("RCS") != fields.end() &&
-             fields.find("Power") != fields.end() && fields.find("Noise") != fields.end() &&
-             fields.find("Elevation") != fields.end()) {
-
-    radar_info_ = "Detected supported (UMRR-11 type-132) radar point cloud type!";
-  } else {
-    radar_info_ = "Detected unsupported radar point cloud type!";
-    ego_velocity_ << 1.0 / 0.0, 1.0 / 0.0, 1.0 / 0.0; // NaN
-  }
-
-  // Filtering
-  for (uint i = 0; i < radar_PCL_msg->size(); ++i) {
-    const auto   target = radar_PCL_msg->at(i);
-    const double r      = Vec3d(target.x, target.y, target.z).norm();
-
-    double azimuth   = std::atan2(target.y, target.x) - M_PI_2;
-    double elevation = std::atan2(std::sqrt(target.x * target.x + target.y * target.y), target.z) - M_PI_2;
-
+  pcl::PointCloud<ar::StdPointRadar>::Ptr radar_pcl(new pcl::PointCloud<ar::StdPointRadar>);
+  pcl::fromROSMsg(radar_PCL2_msg, *radar_pcl);
+  
+  for (auto & p: radar_pcl->points) {
     // Soft filtering
-    if (r > param.min_distance && r < param.max_distance && target.snr_db > param.min_db &&
-        std::fabs(azimuth) < param.azimuth_threshold * R2D && std::fabs(elevation) < param.elevation_threshold * R2D) {
-      const Vec3d p_stab = Vec3d(target.x, target.y, target.z);
-
-      if (p_stab.z() > param.filter_min_z && p_stab.z() < param.filter_max_z) {
-        Vec11d v;
-        v << azimuth, elevation, target.x, target.y, target.z, target.snr_db, target.x / r, target.y / r, target.z / r,
-            -target.v_doppler_mps * param.velocity_correction_factor, target.noise_db;
-        valid_targets.emplace_back(v);
+    if (p.range > param.min_distance && p.range < param.max_distance && p.signal_noise_ratio > param.min_db &&
+        std::fabs(p.azimuth_angle) < param.azimuth_threshold * R2D && std::fabs(p.elevation_angle) < param.elevation_threshold * R2D) {
+      
+      if (p.z > param.filter_min_z && p.z < param.filter_max_z) {
+        valid_targets_.push_back(p);
       } // if p_stab.z()
     }   // if r > param.min_distance
   }
 
-  if (valid_targets.size() > 2) {
+  if (valid_targets_.size() > 2) {
     std::vector<double> v_dopplers;
 
-    for (const auto &v : valid_targets)
-      v_dopplers.emplace_back(std::fabs(v[idx_.v_d]));
+    for (const auto &v : valid_targets_.points)
+      v_dopplers.emplace_back(std::fabs(v.radial_speed));
+
     const size_t n = v_dopplers.size() * (1.0 - param.allowed_outlier_percentage);
 
     std::nth_element(v_dopplers.begin(), v_dopplers.begin() + n, v_dopplers.end());
     const auto median = v_dopplers[n];
+    
     v_dopplers.clear();
 
-    if (median < param.zero_velocity_threshold) {
+    
+    if (std::fabs(median) < param.zero_velocity_threshold) {
       zupt_trigger = true;
       radar_info_  = "Zero velocity detected!";
 
@@ -105,19 +65,19 @@ bool RadarEstimator::Process(const sensor_msgs::msg::PointCloud2 &radar_PCL2_msg
       P_v_r.diagonal() =
           Vec3d(param.sigma_zero_velocity_x, param.sigma_zero_velocity_y, param.sigma_zero_velocity_z).array().square();
 
-      for (const auto &item : valid_targets)
-        if (std::fabs(item[idx_.v_d]) < param.zero_velocity_threshold)
-          radar_scan_inlier.push_back(toRadarPointCloudType(item, idx_));
+      for (const auto &p : valid_targets_.points)
+        if (std::fabs(p.radial_speed) < param.zero_velocity_threshold)
+          radar_scan_inlier.push_back(p);
 
     } else {
       zupt_trigger = false;
       // LSQ velocity estimation
       radar_info_  = "No zero velocity!";
-      MatXd radar_data(valid_targets.size(), 4); // rx, ry, rz, v
+      MatXd radar_data(valid_targets_.size(), 4); // rx, ry, rz, v
       uint  j = 0;
 
-      for (const auto &v : valid_targets)
-        radar_data.row(j++) = Vec4d(v[idx_.r_x], v[idx_.r_y], v[idx_.r_z], v[idx_.v_d]);
+      for (const auto &v : valid_targets_.points)
+        radar_data.row(j++) = Vec4d(v.x, v.y, v.z, v.radial_speed);
 
       // RANSAC
       if (param.use_ransac) {
@@ -125,9 +85,9 @@ bool RadarEstimator::Process(const sensor_msgs::msg::PointCloud2 &radar_PCL2_msg
         solve3DLsqRansac(radar_data, v_r, P_v_r, inlier_idx_best, param);
 
         for (const auto &idx : inlier_idx_best) {
-          radar_scan_inlier.push_back(toRadarPointCloudType(valid_targets.at(idx), idx_));
+          radar_scan_inlier.push_back(valid_targets_.at(idx));
           pcl_vec_.emplace_back(
-              Vec3d(valid_targets.at(idx)[idx_.x_r], valid_targets.at(idx)[idx_.y_r], valid_targets.at(idx)[idx_.z_r]));
+              Vec3d(valid_targets_.points[idx].x, valid_targets_.points[idx].y, valid_targets_.points[idx].z));
         }
 
         if (param.use_odr && v_r.norm() > param.min_speed_odr && inlier_idx_best.size() > param.odr_inlier_threshold) {
@@ -140,37 +100,36 @@ bool RadarEstimator::Process(const sensor_msgs::msg::PointCloud2 &radar_PCL2_msg
           solve3DODR(radar_data_inlier, v_r, P_v_r, param);
         } // else std::cout << "ODR condition is not satisfied, skipping ODR algorithm!" << std::endl; // if use_odr
         inlier_idx_best.clear();
-      } else {
-        solve3DLsq(radar_data, v_r, P_v_r, true, param);
+      } 
+      // else { // TODO: Implement this part
+      //   solve3DLsq(radar_data, v_r, P_v_r, true, param);
 
-        for (const auto &item : valid_targets) {
-          radar_scan_inlier.push_back(toRadarPointCloudType(item, idx_));
-          pcl_vec_.emplace_back(Vec3d(item[idx_.x_r], item[idx_.y_r], item[idx_.z_r]));
-        }
+      //   for (const auto &item : valid_targets) {
+      //     radar_scan_inlier.push_back(toRadarPointCloudType(item, idx_));
+      //     pcl_vec_.emplace_back(Vec3d(item[idx_.x_r], item[idx_.y_r], item[idx_.z_r]));
+      //   }
 
-        if (param.use_odr && v_r.norm() > param.min_speed_odr && radar_scan_inlier.size() > param.odr_inlier_threshold)
-          solve3DODR(radar_data, v_r, P_v_r, param);
-      } // if-else use_ransac
+      //   if (param.use_odr && v_r.norm() > param.min_speed_odr && radar_scan_inlier.size() > param.odr_inlier_threshold)
+      //     solve3DODR(radar_data, v_r, P_v_r, param);
+      // } // if-else use_ransac
     }   // if median
+  
   }     // if valid_targets
 
   setEgoVelocity(v_r);
   setEgoVelocityCovariance(P_v_r);
 
-  radar_scan_inlier.height = 1;
-  radar_scan_inlier.width  = radar_scan_inlier.size();
-
-  pcl::PCLPointCloud2 foo;
-  pcl::toPCLPointCloud2<RadarPointCloudType>(radar_scan_inlier, foo);
-  pcl_conversions::fromPCL(foo, inlier_radar_msg_);
+  pcl::toROSMsg(radar_scan_inlier, inlier_radar_msg_);
+  inlier_radar_msg_.header = radar_PCL2_msg.header;
 
   setInlierRadarRos2PCL2(inlier_radar_msg_);
   setInlierRadarPcl(pcl_vec_);
 
   foo_radar_scan_inlier = radar_scan_inlier;
+  
   pcl_vec_.clear();
   radar_scan_inlier.clear();
-  valid_targets.clear();
+  valid_targets_.clear();
 
   if (zupt_trigger)
     return true;
@@ -343,8 +302,8 @@ void RadarEstimator::solve3DODR(const MatXd &radar_data, Vec3d &v_r, Mat3d &P_v_
     std::cout << "ODR: Failed" << std::endl;
 } // solve3DODR
 
-ICPTransform RadarEstimator::solveICP(const pcl::PointCloud<incsl::RadarPointCloudType> &prev_pcl_msg,
-                                      const pcl::PointCloud<incsl::RadarPointCloudType> &curr_pcl_msg,
+ICPTransform RadarEstimator::solveICP(const pcl::PointCloud<ar::StdPointRadar> &prev_pcl_msg,
+                                      const pcl::PointCloud<ar::StdPointRadar> &curr_pcl_msg,
                                       const RadarPositionEstimatorParam                 &radar_position_estimator_param,
                                       const Mat4d                                       &init_guess_pose) {
 
@@ -356,12 +315,12 @@ ICPTransform RadarEstimator::solveICP(const pcl::PointCloud<incsl::RadarPointClo
 
   const bool normalization = false;
 
-  pcl::PointCloud<incsl::RadarPointCloudType> prev_pcl_normalized_msg = prev_pcl_msg;
-  pcl::PointCloud<incsl::RadarPointCloudType> curr_pcl_normalized_msg = curr_pcl_msg;
+  pcl::PointCloud<ar::StdPointRadar> prev_pcl_normalized_msg = prev_pcl_msg;
+  pcl::PointCloud<ar::StdPointRadar> curr_pcl_normalized_msg = curr_pcl_msg;
 
   if (normalization) {
-    pcl::PointCloud<incsl::RadarPointCloudType> prev_pcl_normalized_msg = normalizedPointCloud(prev_pcl_msg);
-    pcl::PointCloud<incsl::RadarPointCloudType> curr_pcl_normalized_msg = normalizedPointCloud(curr_pcl_msg);
+    pcl::PointCloud<ar::StdPointRadar> prev_pcl_normalized_msg = normalizedPointCloud(prev_pcl_msg);
+    pcl::PointCloud<ar::StdPointRadar> curr_pcl_normalized_msg = normalizedPointCloud(curr_pcl_msg);
   }
 
   for (std::size_t i = 0; i < prev_pcl_normalized_msg.points.size(); ++i) {
@@ -506,8 +465,8 @@ void RadarEstimator::Colorize(const pcl::PointCloud<pcl::PointXYZ> &pc, pcl::Poi
   }
 } // void Colorize
 
-pcl::PointCloud<incsl::RadarPointCloudType>
-RadarEstimator::normalizedPointCloud(const pcl::PointCloud<incsl::RadarPointCloudType> &raw_pcl_msg) {
+pcl::PointCloud<ar::StdPointRadar>
+RadarEstimator::normalizedPointCloud(const pcl::PointCloud<ar::StdPointRadar> &raw_pcl_msg) {
 
   std::vector<double> buffer_x, buffer_y, buffer_z;
   for (std::size_t i = 0; i < raw_pcl_msg.points.size(); ++i) {
@@ -529,7 +488,7 @@ RadarEstimator::normalizedPointCloud(const pcl::PointCloud<incsl::RadarPointClou
   const double d_y = max_y - min_y;
   const double d_z = max_z - min_z;
 
-  pcl::PointCloud<incsl::RadarPointCloudType> normalized_pcl_msg;
+  pcl::PointCloud<ar::StdPointRadar> normalized_pcl_msg;
   normalized_pcl_msg = raw_pcl_msg;
 
   for (std::size_t i = 0; i < raw_pcl_msg.points.size(); ++i) {
@@ -554,7 +513,7 @@ RadarPointCloudType RadarEstimator::toRadarPointCloudType(const Vec11d &item, co
   return point;
 } // toRadarPointCloudType
 
-pcl::PointCloud<RadarPointCloudType> RadarEstimator::getRadarScanInlier() {
+pcl::PointCloud<ar::StdPointRadar> RadarEstimator::getRadarScanInlier() {
   return foo_radar_scan_inlier;
 } // getRadarScanInlier
 

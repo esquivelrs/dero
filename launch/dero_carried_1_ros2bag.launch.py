@@ -16,19 +16,19 @@
 # along with this program.  If not, see <https:##www.gnu.org#licenses#>.
 
 import os
+
 import launch
 import launch_ros.actions
-
-from launch import LaunchDescription
-from launch_ros.actions import Node
-from launch.actions import ExecuteProcess, DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration
-
 from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, ExecuteProcess
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
+
 
 def generate_launch_description():
-    est_save_dir_arg = DeclareLaunchArgument('est_save_dir',default_value = '/home/vietdo/Desktop/viet_est/carried_1/scekf_dero_carried_1_est.txt',description = '')
-    bag_dir_arg      = DeclareLaunchArgument('bag_dir',     default_value = '/home/vietdo/Downloads/radar_inertial_datasets_icins_2021/carried_datasets/carried_1/carried_1.db3',description = '');
+    est_save_dir_arg = DeclareLaunchArgument('est_save_dir',default_value = '/home/ros/rosbags_shared/carried_1/scekf_dero_carried_1_est.txt',description = '')
+    bag_dir_arg      = DeclareLaunchArgument('bag_dir',     default_value = '/home/ros/rosbags_shared/radar_inertial_datasets_icins_2021/carried_datasets/carried_1/carried_1.db3',description = '');
 
     # ROS parameter
     imu_topic_arg                     = DeclareLaunchArgument('imu_topic',        default_value = '/sensor_platform/imu',description = '')

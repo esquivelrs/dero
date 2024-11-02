@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.8)
 project(dero)
 
 # Default to C++14
@@ -26,9 +26,9 @@ add_library(odrpack
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(agrirobot_std_radar REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
-find_package(rosbag2_cpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(tf2_ros REQUIRED)
@@ -46,8 +46,8 @@ add_definitions(${PCL_DEFINITIONS})
 set(DEPENDENCIES
   "rclcpp"
   "std_msgs"
+  "agrirobot_std_radar"
   "sensor_msgs"
-  "rosbag2_cpp"
   "nav_msgs"
   "geometry_msgs"
   "tf2_eigen"
@@ -55,7 +55,7 @@ set(DEPENDENCIES
 )
 
 add_library(dero_lib SHARED
-            src/cores/run_ros2bag.cpp
+            src/cores/run_dero.cpp
             src/cores/ekf_rio.cpp
             src/cores/scekf_dero.cpp
             src/cores/radar_estimator.cpp
@@ -64,23 +64,23 @@ add_library(dero_lib SHARED
             src/utils/math_tools.cpp
 )
 
-add_executable(scekf_dero_ros2bag_node
-               src/nodes/scekf_dero_ros2bag_node.cpp 
+add_executable(scekf_dero_node
+               src/nodes/scekf_dero_node.cpp 
 )
 
-target_link_libraries(scekf_dero_ros2bag_node
+target_link_libraries(scekf_dero_node
                       dero_lib
                       ${PCL_LIBRARIES}
                       ${BOOST_LIBRARIES}
                       odrpack
 )
 
-ament_target_dependencies(scekf_dero_ros2bag_node
+ament_target_dependencies(scekf_dero_node
                           rclcpp
                           std_msgs
                           sensor_msgs
+                          agrirobot_std_radar
                           nav_msgs
-                          rosbag2_cpp
                           geometry_msgs
                           tf2_eigen
                           tf2_ros
@@ -91,19 +91,20 @@ ament_target_dependencies(dero_lib
                           rclcpp
                           std_msgs
                           sensor_msgs
+                          agrirobot_std_radar
                           nav_msgs
-                          rosbag2_cpp
                           geometry_msgs
                           tf2_eigen
                           tf2_ros
                           pcl_conversions
 )
 install(TARGETS
-  scekf_dero_ros2bag_node
+  scekf_dero_node
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY
   launch
+  config
   DESTINATION share/${PROJECT_NAME}/)
 
 install(DIRECTORY

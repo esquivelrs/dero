@@ -19,6 +19,7 @@
 #define RADAR_ESTIMATOR_HPP
 
 #include <random>
+#include <iostream>
 
 #include <dero/nav_convert.hpp>
 #include <dero/odr.h>
@@ -38,6 +39,7 @@
 #include <pcl/registration/ndt.h>
 
 #include <pcl_conversions/pcl_conversions.h>
+#include "agrirobot_std_radar/std_point_definition.hpp"
 
 // clang-format off
 POINT_CLOUD_REGISTER_POINT_STRUCT(incsl::RadarPointCloudType,
@@ -68,8 +70,8 @@ class RadarEstimator {
 
     bool Process(const sensor_msgs::msg::PointCloud2 &radar_msg, const RadarVelocityEstimatorParam &param);
 
-    ICPTransform solveICP(const pcl::PointCloud<incsl::RadarPointCloudType> &prev_pcl_msg,
-                          const pcl::PointCloud<incsl::RadarPointCloudType> &curr_pcl_msg,
+    ICPTransform solveICP(const pcl::PointCloud<ar::StdPointRadar> &prev_pcl_msg,
+                          const pcl::PointCloud<ar::StdPointRadar> &curr_pcl_msg,
                           const RadarPositionEstimatorParam                 &radar_position_estimator_param,
                           const Mat4d                                       &init_guess_pose);
 
@@ -77,7 +79,7 @@ class RadarEstimator {
     Mat3d getEgoVelocityCovariance();
 
     ICPTransform                         getIcpTransform();
-    pcl::PointCloud<RadarPointCloudType> getRadarScanInlier();
+    pcl::PointCloud<ar::StdPointRadar> getRadarScanInlier();
 
     std::string getRadarInfo();
 
@@ -102,13 +104,13 @@ class RadarEstimator {
 
     uint ransac_iter_;
 
-    std::vector<Vec11d> valid_targets;
+    // std::vector<Vec11d> valid_targets;
     std::vector<Vec3d>  inlier_pcl_vec;
-
-    pcl::PointCloud<RadarPointCloudType> prev_radar_scan_raw;
-    pcl::PointCloud<RadarPointCloudType> radar_scan_inlier;
-    pcl::PointCloud<RadarPointCloudType> foo_radar_scan_inlier;
-    pcl::PointCloud<RadarPointCloudType> prev_radar_scan_inlier;
+    pcl::PointCloud<ar::StdPointRadar> valid_targets_;
+    // pcl::PointCloud<ar::StdPointRadar> prev_radar_scan_raw;
+    pcl::PointCloud<ar::StdPointRadar> radar_scan_inlier;
+    pcl::PointCloud<ar::StdPointRadar> foo_radar_scan_inlier;
+    // pcl::PointCloud<ar::StdPointRadar> prev_radar_scan_inlier;
 
     sensor_msgs::msg::PointCloud2 inlier_radar_msg;
     sensor_msgs::msg::PointCloud2 inlier_radar_msg_;
@@ -123,7 +125,7 @@ class RadarEstimator {
     void solve3DODR(const MatXd &radar_data, Vec3d &v_r, Mat3d &P_v_r, const RadarVelocityEstimatorParam param_);
     void solve3DLsqRansac(const MatXd &radar_data, Vec3d &v_r, Mat3d &P_v_r, std::vector<uint> &inlier_idx_best,
                           const RadarVelocityEstimatorParam param);
-    void pclToPcl2Msg(pcl::PointCloud<RadarPointCloudType>     radar_scan_inlier,
+    void pclToPcl2Msg(pcl::PointCloud<ar::StdPointRadar>     radar_scan_inlier,
                       sensor_msgs::msg::PointCloud2::SharedPtr inlier_radar_msg);
     void setInlierRadarRos2PCL2(sensor_msgs::msg::PointCloud2 radar_msg);
     void setInlierRadarPcl(const std::vector<Vec3d> &pcl_vec);
@@ -131,8 +133,8 @@ class RadarEstimator {
     void setEgoVelocityCovariance(Mat3d P_v_r);
     void Colorize(const pcl::PointCloud<pcl::PointXYZ> &pc, pcl::PointCloud<pcl::PointXYZRGB> &pc_colored,
                   const std::vector<int> &color);
-    pcl::PointCloud<incsl::RadarPointCloudType>
-    normalizedPointCloud(const pcl::PointCloud<incsl::RadarPointCloudType> &raw_pcl_msg);
+    pcl::PointCloud<ar::StdPointRadar>
+    normalizedPointCloud(const pcl::PointCloud<ar::StdPointRadar> &raw_pcl_msg);
 };
 } // namespace incsl
 
