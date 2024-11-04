@@ -80,6 +80,10 @@ class RunDeRO : public rclcpp::Node {
     std::string groundtruth_topic_name_;
     std::string est_save_dir_;
     std::string bag_dir;
+    std::string radar_frame_id_;
+    std::string robot_frame_id_;
+    std::string world_frame_id_;
+    std::string imu_frame_id_;
 
     std::ofstream est_save;
 

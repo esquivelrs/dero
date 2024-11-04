@@ -7,7 +7,7 @@ CONFIG_COMMON_DIR = PathJoinSubstitution([get_package_share_directory("dero"), "
 
 
 def generate_launch_description():
-    params = [PathJoinSubstitution([CONFIG_COMMON_DIR, "dero_carried_1.yaml"])]
+    params = [PathJoinSubstitution([CONFIG_COMMON_DIR, "dero.yaml"])] #dero_carried_1
 
     
     std_points = Node(
@@ -40,7 +40,7 @@ def generate_launch_description():
             {"use_sim_time": True},
         ],
         remappings=[
-            ("/input_imu", "/sensor_platform/imu"), # /sensor_platform/imu /tractor/lidar/front/imu/sync
+            ("/input_imu", "/tractor/lidar/front/imu/sync"), # /sensor_platform/imu /tractor/lidar/front/imu/sync
             ("/input_radar", "/tractor/radar/front/points"),
         ],
         # prefix=['xterm -e gdb -ex run --args']
@@ -50,7 +50,7 @@ def generate_launch_description():
     return LaunchDescription(
         [
             std_points,
-            dero_std_points,
+            # dero_std_points,
             dero,
         ]
     )

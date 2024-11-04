@@ -101,23 +101,29 @@ bool RadarEstimator::Process(const sensor_msgs::msg::PointCloud2 &radar_PCL2_msg
         } // else std::cout << "ODR condition is not satisfied, skipping ODR algorithm!" << std::endl; // if use_odr
         inlier_idx_best.clear();
       } 
-      // else { // TODO: Implement this part
-      //   solve3DLsq(radar_data, v_r, P_v_r, true, param);
+      else { 
+        solve3DLsq(radar_data, v_r, P_v_r, true, param);
 
-      //   for (const auto &item : valid_targets) {
-      //     radar_scan_inlier.push_back(toRadarPointCloudType(item, idx_));
-      //     pcl_vec_.emplace_back(Vec3d(item[idx_.x_r], item[idx_.y_r], item[idx_.z_r]));
-      //   }
+        for (const auto &item : valid_targets) {
+          radar_scan_inlier.push_back(valid_targets_.at(idx));
+          pcl_vec_.emplace_back(Vec3d(valid_targets_.points[idx].x, valid_targets_.points[idx].y, valid_targets_.points[idx].z));
+        }
 
-      //   if (param.use_odr && v_r.norm() > param.min_speed_odr && radar_scan_inlier.size() > param.odr_inlier_threshold)
-      //     solve3DODR(radar_data, v_r, P_v_r, param);
-      // } // if-else use_ransac
+        if (param.use_odr && v_r.norm() > param.min_speed_odr && radar_scan_inlier.size() > param.odr_inlier_threshold)
+          solve3DODR(radar_data, v_r, P_v_r, param);
+      } // if-else use_ransac
     }   // if median
   
   }     // if valid_targets
+  else {
+    radar_info_  = "No valid target!";
+  }
 
   setEgoVelocity(v_r);
   setEgoVelocityCovariance(P_v_r);
+
+  radar_scan_inlier.height = 1;
+  radar_scan_inlier.width  = radar_scan_inlier.size();
 
   pcl::toROSMsg(radar_scan_inlier, inlier_radar_msg_);
   inlier_radar_msg_.header = radar_PCL2_msg.header;
@@ -334,6 +340,12 @@ ICPTransform RadarEstimator::solveICP(const pcl::PointCloud<ar::StdPointRadar> &
     curr_->at(i).y = curr_pcl_normalized_msg.points[i].y;
     curr_->at(i).z = curr_pcl_normalized_msg.points[i].z;
   }
+
+
+  prev_->width = prev_->points.size();
+  prev_->height = 1;
+  curr_->width = curr_->points.size();
+  curr_->height = 1;
 
   pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
 

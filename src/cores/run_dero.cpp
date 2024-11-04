@@ -76,6 +76,10 @@ void RunDeRO::LoadParameters() {
   this->declare_parameter("est_save_dir", "");
   this->declare_parameter("ros2_pub_rate", 1);
   this->declare_parameter("cloning_window_size", 1);
+  this->declare_parameter("radar_frame_id", "");
+  this->declare_parameter("robot_frame_id", "");
+  this->declare_parameter("world_frame_id", "");
+  this->declare_parameter("imu_frame_id", "");
   this->declare_parameter("coarse_alignment_window_size", 0);
   this->declare_parameter("imu_body_rotation_offset_x", 0.0);
   this->declare_parameter("imu_body_rotation_offset_y", 0.0);
@@ -161,6 +165,10 @@ void RunDeRO::LoadParameters() {
   this->get_parameter("est_save_dir", est_save_dir_);
   this->get_parameter("ros2_pub_rate", ros2_pub_rate_);
   this->get_parameter("cloning_window_size", cloning_window_size);
+  this->get_parameter("radar_frame_id", radar_frame_id_);
+  this->get_parameter("robot_frame_id", robot_frame_id_);
+  this->get_parameter("world_frame_id", world_frame_id_);
+  this->get_parameter("imu_frame_id", imu_frame_id_);
   this->get_parameter("coarse_alignment_window_size", ca_wind_);
   this->get_parameter("gravity", grav_);
   this->get_parameter("imu_body_rotation_offset_x", imu_body_rotation_offset_x_);
@@ -564,10 +572,10 @@ void RunDeRO::MsgPublish() {
       pose_gt_.pose.orientation.z = gt_msg.pose.orientation.z;
 
       pose_gt_.header.stamp    = stamp_now_;
-      pose_gt_.header.frame_id = "world";
+      pose_gt_.header.frame_id = world_frame_id_;
 
       pose_path_gt_.header.stamp    = stamp_now_;
-      pose_path_gt_.header.frame_id = "world";
+      pose_path_gt_.header.frame_id = world_frame_id_;
       pose_path_gt_.poses.push_back(pose_gt_);
 
       pose_path_gt_publisher_->publish(pose_path_gt_);
@@ -580,8 +588,8 @@ void RunDeRO::MsgPublish() {
 
     geometry_msgs::msg::TransformStamped pose_transform_;
     pose_transform_.header.stamp    = stamp_now_;
-    pose_transform_.header.frame_id = "world";
-    pose_transform_.child_frame_id  = "base_link";
+    pose_transform_.header.frame_id = world_frame_id_;
+    pose_transform_.child_frame_id  = robot_frame_id_;
 
     pose_transform_.transform.translation.x = state_.position(0, 0);
     pose_transform_.transform.translation.y = state_.position(1, 0);
@@ -596,8 +604,8 @@ void RunDeRO::MsgPublish() {
 
     geometry_msgs::msg::TransformStamped radar_transform_;
     radar_transform_.header.stamp    = stamp_now_;
-    radar_transform_.header.frame_id = "base_link";
-    radar_transform_.child_frame_id  = "radar";
+    radar_transform_.header.frame_id = robot_frame_id_;
+    radar_transform_.child_frame_id  = radar_frame_id_;
 
     radar_transform_.transform.translation.x = imu_radar_calibration_.position(0, 0);
     radar_transform_.transform.translation.y = imu_radar_calibration_.position(1, 0);
@@ -621,7 +629,7 @@ void RunDeRO::MsgPublish() {
                        "Radar PointCloud2 has empty frame_id, setting default frame_id: radar!");
     }
 
-    radar_filtered_pcl2_.header.frame_id = "radar";
+    radar_filtered_pcl2_.header.frame_id = radar_frame_id_;
     radar_filtered_pcl2_.header.stamp    = stamp_now_;
     radar_publisher_->publish(radar_filtered_pcl2_);
 
@@ -637,10 +645,10 @@ void RunDeRO::MsgPublish() {
     pose_.pose.orientation.z = state_.quaternion(3, 0);
 
     pose_.header.stamp    = stamp_now_;
-    pose_.header.frame_id = "world";
+    pose_.header.frame_id = world_frame_id_;
 
     pose_path_.header.stamp    = stamp_now_;
-    pose_path_.header.frame_id = "world";
+    pose_path_.header.frame_id = world_frame_id_;
     pose_path_.poses.push_back(pose_);
 
     pose_path_publisher_->publish(pose_path_);
@@ -959,6 +967,14 @@ void RunDeRO::Run() {
           } else if (window_count == cloning_window_size) {
             icp_valid             += 1;
             end_radar_scan_inlier  = radar_estimator_.getRadarScanInlier();
+
+            // print the width and height of the radar scan
+            RCLCPP_INFO(this->get_logger(), "Radar scan width: %d, height: %d", first_window_radar_scan_inlier.width,
+                                                                                   first_window_radar_scan_inlier.height);
+
+            RCLCPP_INFO(this->get_logger(), "Radar scan width: %d, height: %d", end_radar_scan_inlier.width,
+                                                                                   end_radar_scan_inlier.height);
+
 
             icp_init_pose = Mat4d::Identity();
 

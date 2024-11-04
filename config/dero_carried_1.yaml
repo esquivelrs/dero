@@ -1,6 +1,11 @@
 /radar/scekf_dero_node:
   ros__parameters:
-    est_save_dir: "/home/ros/rosbags_shared/dero.txt"
+    est_save_dir: "/home/ros/rosbags_shared/dero_c1.txt"
+
+    world_frame_id: "world"
+    radar_frame_id: "radar"
+    imu_frame_id: "imu"
+    robot_frame_id: "base_link"
 
     imu_body_rotation_offset_x: 0.0
     imu_body_rotation_offset_y: 0.0

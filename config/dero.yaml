@@ -1,6 +1,11 @@
 /radar/scekf_dero_node:
   ros__parameters:
-    est_save_dir: "/home/ros/rosbags_shared/dero.txt"
+    est_save_dir: "/home/ros/rosbags_shared/dero_oc.txt"
+
+    world_frame_id: "map"
+    radar_frame_id: "tractor_radar_bosch_bottom"
+    imu_frame_id: "tractor_lidar_front/imu"
+    robot_frame_id: "base_link_oo"
 
     imu_body_rotation_offset_x: 1.019
     imu_body_rotation_offset_y: 0.012
