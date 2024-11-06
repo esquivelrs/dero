@@ -15,8 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#ifndef RUN_ROS2BAG_HPP
-#define RUN_ROS2BAG_HPP
+#ifndef RUN_DERO_HPP
+#define RUN_DERO_HPP
 
 #define BOOST_BIND_NO_PLACEHOLDERS
 
@@ -35,9 +35,9 @@
 #include <rclcpp/clock.hpp>
 #include <rclcpp/rclcpp.hpp>
 
-#include "rosbag2_cpp/reader.hpp"
-#include "rosbag2_cpp/readers/sequential_reader.hpp"
-#include <rosbag2_storage/storage_options.hpp>
+
+// #include "rosbag2_cpp/reader.hpp"
+// #include "rosbag2_cpp/readers/sequential_reader.hpp"
 
 #include "tf2_ros/transform_broadcaster.h"
 
@@ -46,6 +46,7 @@
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+// #include "agrirobot_std_radar/std_point_definition.hpp"
 
 #include <std_msgs/msg/string.hpp>
 
@@ -65,10 +66,13 @@
 
 namespace incsl {
 
-class RunRos2Bag : public rclcpp::Node {
+class RunDeRO : public rclcpp::Node {
   public:
-    RunRos2Bag(std::string node_name);
+    explicit RunDeRO(const rclcpp::NodeOptions & options);
     bool use_dr_structure;
+    ~RunDeRO() {
+      ShutdownHandler();
+    }
 
   private:
     std::string imu_topic_name_;
@@ -76,6 +80,10 @@ class RunRos2Bag : public rclcpp::Node {
     std::string groundtruth_topic_name_;
     std::string est_save_dir_;
     std::string bag_dir;
+    std::string radar_frame_id_;
+    std::string robot_frame_id_;
+    std::string world_frame_id_;
+    std::string imu_frame_id_;
 
     std::ofstream est_save;
 
@@ -93,6 +101,8 @@ class RunRos2Bag : public rclcpp::Node {
     std::vector<sensor_msgs::msg::Imu>         imu_buff;
     std::vector<sensor_msgs::msg::PointCloud2> radar_buff;
     std::vector<std::string>                   topics;
+    std::mutex imu_mutex_;
+    std::mutex radar_mutex_;
 
     int ros2_pub_rate_;
     int cloning_window_size;
@@ -254,15 +264,18 @@ class RunRos2Bag : public rclcpp::Node {
     rclcpp::TimerBase::SharedPtr                                viet_timer_;
     rclcpp::CallbackGroup::SharedPtr                            pub_callback_group_;
     rclcpp::CallbackGroup::SharedPtr                            process_callback_group_;
+    rclcpp::CallbackGroup::SharedPtr                            imu_callback_group_;
+    rclcpp::CallbackGroup::SharedPtr                            radar_callback_group_;
+
+    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr       imu_subscriber_;
+    rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr radar_subscriber_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr radar_publisher_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr radar_raw_publisher_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr           pose_path_publisher_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr           pose_path_gt_publisher_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr         viet_publisher_;
 
     // rosbag2_cpp::StorageOptions   storage_options;
-    rosbag2_storage::StorageOptions storage_options;
-    rosbag2_cpp::ConverterOptions converter_options;
+    // rosbag2_cpp::ConverterOptions converter_options;
 
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_pose_;
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_radar_;
@@ -273,7 +286,7 @@ class RunRos2Bag : public rclcpp::Node {
     void ImuCallback(const sensor_msgs::msg::Imu imu_msg);
     void RadarCallback(const sensor_msgs::msg::PointCloud2 radar_msg);
     void ShutdownHandler();
-}; // class RunRos2Bag
+}; // class RunDeRO
 } // namespace incsl
 
 #endif // ifndef

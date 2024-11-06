@@ -51,6 +51,35 @@ bool RadarEstimator::Process(const sensor_msgs::msg::PointCloud2 &radar_PCL2_msg
 
     radar_info_ = "Detected supported (IWR1443BOOST) radar point cloud type!";
 
+  } else if (fields.find("x") != fields.end() && fields.find("y") != fields.end() && fields.find("z") != fields.end() &&
+         fields.find("range") != fields.end() && fields.find("azimuth_angle") != fields.end() &&
+         fields.find("elevation_angle") != fields.end() && fields.find("radial_speed") != fields.end() &&
+         fields.find("radar_cross_section") != fields.end() && fields.find("signal_noise_ratio") != fields.end() &&
+         fields.find("power") != fields.end() && fields.find("noise") != fields.end() &&
+         fields.find("detection_confidence") != fields.end()) {
+    // Detected new radar point cloud type
+    radar_info_ = "Detected new radar point cloud type!";
+    
+    // Convert the PointCloud2 message to your new radar point cloud type
+    pcl::PCLPointCloud2 pcl_pc2;
+    pcl_conversions::toPCL(radar_PCL2_msg, pcl_pc2);
+    pcl::PointCloud<StdPointRadar>::Ptr new_radar_PCL_msg(new pcl::PointCloud<StdPointRadar>);
+    pcl::fromPCLPointCloud2(pcl_pc2, *new_radar_PCL_msg);
+    
+    // Convert new radar point cloud to the common RadarPointCloudType
+    radar_PCL_msg->points.resize(new_radar_PCL_msg->points.size());
+    for (size_t i = 0; i < new_radar_PCL_msg->points.size(); ++i) {
+        const auto& p = new_radar_PCL_msg->points[i];
+        RadarPointCloudType rpct;
+        rpct.x = p.x;
+        rpct.y = p.y;
+        rpct.z = p.z;
+        rpct.range = p.range;
+        rpct.snr_db = p.signal_noise_ratio;
+        rpct.noise_db = p.noise;
+        rpct.v_doppler_mps = p.radial_speed;
+        radar_PCL_msg->points[i] = rpct;
+    }
   } else if (fields.find("Number_Of_Objects") != fields.end() && fields.find("Cycle_Duration") != fields.end() &&
              fields.find("Range") != fields.end() && fields.find("Azimuth") != fields.end() &&
              fields.find("Speed_Radial") != fields.end() && fields.find("RCS") != fields.end() &&
@@ -375,6 +404,11 @@ ICPTransform RadarEstimator::solveICP(const pcl::PointCloud<incsl::RadarPointClo
     curr_->at(i).y = curr_pcl_normalized_msg.points[i].y;
     curr_->at(i).z = curr_pcl_normalized_msg.points[i].z;
   }
+
+  prev_->width = prev_->points.size();
+  prev_->height = 1;
+  curr_->width = curr_->points.size();
+  curr_->height = 1;
 
   pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
 

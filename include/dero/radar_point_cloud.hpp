@@ -50,6 +50,23 @@ struct SmartMicroRadarPointCloudType {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 } EIGEN_ALIGN16;
 
+
+struct StdPointRadar
+{
+  PCL_ADD_POINT4D;
+  float range;
+  float azimuth_angle;
+  float elevation_angle;
+  float radial_speed;
+  float radar_cross_section;
+  float signal_noise_ratio;
+  float power;
+  float noise;
+  float detection_confidence;
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+} EIGEN_ALIGN16;
+
+
 struct RadarIndex {
     uint azimuth   = 0;
     uint elevation = 1;

@@ -58,6 +58,20 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(incsl::SmartMicroRadarPointCloudType,
                                   (float, power, Power)
                                   (float, noise, Noise)
                                   (float, elevation, Elevation))
+
+POINT_CLOUD_REGISTER_POINT_STRUCT(incsl::StdPointRadar,
+                                  (float, x, x)
+                                  (float, y, y)
+                                  (float, z, z)
+                                  (float, range, range)
+                                  (float, azimuth_angle, azimuth_angle)
+                                  (float, elevation_angle, elevation_angle)
+                                  (float, radial_speed, radial_speed)
+                                  (float, radar_cross_section, radar_cross_section)
+                                  (float, signal_noise_ratio, signal_noise_ratio)
+                                  (float, power, power)
+                                  (float, noise, noise)
+                                  (float, detection_confidence, detection_confidence))
 // clang-format on
 
 namespace incsl {

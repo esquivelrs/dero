@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.8)
 project(dero)
 
 # Default to C++14
@@ -34,6 +34,7 @@ find_package(tf2_eigen REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(PCL 1.10 REQUIRED)
 find_package(pcl_conversions REQUIRED)
+find_package(rosbag2_storage REQUIRED)
 
 include_directories(
   include
@@ -55,6 +56,7 @@ set(DEPENDENCIES
 )
 
 add_library(dero_lib SHARED
+            src/cores/run_dero.cpp
             src/cores/run_ros2bag.cpp
             src/cores/ekf_rio.cpp
             src/cores/scekf_dero.cpp
@@ -81,6 +83,29 @@ ament_target_dependencies(scekf_dero_ros2bag_node
                           sensor_msgs
                           nav_msgs
                           rosbag2_cpp
+                          rosbag2_storage
+                          geometry_msgs
+                          tf2_eigen
+                          tf2_ros
+                          pcl_conversions
+)
+
+add_executable(scekf_dero_node
+               src/nodes/scekf_dero_node.cpp 
+)
+
+target_link_libraries(scekf_dero_node
+                      dero_lib
+                      ${PCL_LIBRARIES}
+                      ${BOOST_LIBRARIES}
+                      odrpack
+)
+
+ament_target_dependencies(scekf_dero_node
+                          rclcpp
+                          std_msgs
+                          sensor_msgs
+                          nav_msgs
                           geometry_msgs
                           tf2_eigen
                           tf2_ros
@@ -93,6 +118,7 @@ ament_target_dependencies(dero_lib
                           sensor_msgs
                           nav_msgs
                           rosbag2_cpp
+                          rosbag2_storage
                           geometry_msgs
                           tf2_eigen
                           tf2_ros
@@ -100,6 +126,10 @@ ament_target_dependencies(dero_lib
 )
 install(TARGETS
   scekf_dero_ros2bag_node
+  DESTINATION lib/${PROJECT_NAME})
+
+install(TARGETS
+  scekf_dero_node
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY
