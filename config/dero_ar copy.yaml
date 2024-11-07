@@ -3,7 +3,7 @@
     est_save_dir: "/home/ros/rosbags_shared/dero_ar.txt"
 
     world_frame_id: "world"
-    radar_frame_id: "radar00"
+    radar_frame_id: "tractor_radar_bosch_bottom"
     imu_frame_id: "tractor_lidar_front/imu"
     robot_frame_id: "base_link_00"
 
@@ -19,16 +19,10 @@
     imu_radar_position_offset_y: -0.008
     imu_radar_position_offset_z: -0.228
 
-    #-0.032, 0.011, 0.999, -0.000
-
-    imu_radar_quaternion_offset_w: 0.0
+    imu_radar_quaternion_offset_w: -0.000
     imu_radar_quaternion_offset_x: -0.032
     imu_radar_quaternion_offset_y: 0.011
-    imu_radar_quaternion_offset_z: 0.999    
-    # imu_radar_quaternion_offset_w: 1.0
-    # imu_radar_quaternion_offset_x: 0.0
-    # imu_radar_quaternion_offset_y: 0.0
-    # imu_radar_quaternion_offset_z: 0.0
+    imu_radar_quaternion_offset_z: 0.999
     gravity: 9.81
 
     P_init_position: 1.0e-10
@@ -63,13 +57,13 @@
     filter_min_z: -100.0
     filter_max_z: 100.0
     zero_velocity_threshold: 0.05
-    sigma_zero_velocity_x: 0.01
-    sigma_zero_velocity_y: 0.01
-    sigma_zero_velocity_z: 0.01 # 0.025
+    sigma_zero_velocity_x: 0.025
+    sigma_zero_velocity_y: 0.025
+    sigma_zero_velocity_z: 0.025
     allowed_outlier_percentage: 0.25
-    max_sigma_x: 0.05
-    max_sigma_y: 0.05
-    max_sigma_z: 0.05 # 0.2
+    max_sigma_x: 0.2
+    max_sigma_y: 0.15
+    max_sigma_z: 0.2
     max_r_cond: 1.0e3
 
     use_ransac: true
@@ -96,8 +90,8 @@
     euclidean_fit_eps: 0.00000001
     cloning_window_size: 5
     window_slicing: false
-    ransac_outlier_reject_thres: 0.005
+    ransac_outlier_reject_thres: 0.01
     icp_std_x: 1.0
     icp_std_y: 1.0
-    icp_std_z: 0.1
+    icp_std_z: 1.0
     accel_angle_adapt: 2.0

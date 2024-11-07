@@ -31,7 +31,7 @@ RunDeRO::RunDeRO(const rclcpp::NodeOptions & options)
   qos.best_effort();
   qos.keep_last(1);
   
-  pub_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+  pub_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   radar_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   imu_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
@@ -54,7 +54,7 @@ RunDeRO::RunDeRO(const rclcpp::NodeOptions & options)
 
   // rclcpp::PublisherOptions pub_options;
   // pub_options.callback_group = pub_callback_group_;
-  viet_timer_ = this->create_wall_timer(std::chrono::milliseconds(ros2_pub_rate_),
+  viet_timer_ = this->create_wall_timer(60ms,
                                         std::bind(&RunDeRO::MsgPublish, this), pub_callback_group_);
 
   callback_timer_process_ = this->create_wall_timer(1ms, std::bind(&RunDeRO::Run, this), process_callback_group_);
@@ -290,54 +290,54 @@ void RunDeRO::LoadParameters() {
   radar_pos_est_param_.icp_std_y                       = icp_std_y_;
   radar_pos_est_param_.icp_std_z                       = icp_std_z_;
 
-  RCLCPP_INFO(this->get_logger(), "The IMU topic name is %s", imu_topic_name_.c_str());
-  RCLCPP_INFO(this->get_logger(), "The Radar topic name is %s", radar_topic_name_.c_str());
+  RCLCPP_INFO_ONCE(this->get_logger(), "The IMU topic name is %s", imu_topic_name_.c_str());
+  RCLCPP_INFO_ONCE(this->get_logger(), "The Radar topic name is %s", radar_topic_name_.c_str());
 
   if (groundtruth_included)
-    RCLCPP_INFO(this->get_logger(), "The ground truth topic name is %s", groundtruth_topic_name_.c_str());
+    RCLCPP_INFO_ONCE(this->get_logger(), "The ground truth topic name is %s", groundtruth_topic_name_.c_str());
   else {
-    RCLCPP_INFO(this->get_logger(), "No ground truth data is provided");
-    RCLCPP_INFO(this->get_logger(), "Publishing rate is %d Hz", ros2_pub_rate_);
-    RCLCPP_INFO(this->get_logger(), "Coarse alignment window size is %d", ca_wind_);
+    RCLCPP_INFO_ONCE(this->get_logger(), "No ground truth data is provided");
+    RCLCPP_INFO_ONCE(this->get_logger(), "Publishing rate is %d Hz", ros2_pub_rate_);
+    RCLCPP_INFO_ONCE(this->get_logger(), "Coarse alignment window size is %d", ca_wind_);
   }
 
-  RCLCPP_INFO(this->get_logger(), "EKF estimation will be saved in %s", est_save_dir_.c_str());
+  RCLCPP_INFO_ONCE(this->get_logger(), "EKF estimation will be saved in %s", est_save_dir_.c_str());
 
   if (use_dr_structure)
-    RCLCPP_INFO(this->get_logger(), "Use dead reckoning approach: True");
+    RCLCPP_INFO_ONCE(this->get_logger(), "Use dead reckoning approach: True");
   else
-    RCLCPP_INFO(this->get_logger(), "Use dead reckoning approach: False");
+    RCLCPP_INFO_ONCE(this->get_logger(), "Use dead reckoning approach: False");
 
   if (radar_outlier_reject)
-    RCLCPP_INFO(this->get_logger(), "Using Chi squared test to reject radar outliers: True");
+    RCLCPP_INFO_ONCE(this->get_logger(), "Using Chi squared test to reject radar outliers: True");
   else
-    RCLCPP_INFO(this->get_logger(), "Using Chi squared test to reject radar outliers: False");
+    RCLCPP_INFO_ONCE(this->get_logger(), "Using Chi squared test to reject radar outliers: False");
 
-  RCLCPP_INFO(this->get_logger(), "IMU and vehicle's body frame rotation offset is [%f %f %f] (degree)",
+  RCLCPP_INFO_ONCE(this->get_logger(), "IMU and vehicle's body frame rotation offset is [%f %f %f] (degree)",
                    imu_body_rotation_offset_x_, imu_body_rotation_offset_y_, imu_body_rotation_offset_z_);
-  RCLCPP_INFO(this->get_logger(), "IMU velocity random walk is %f", vel_rw_);
-  RCLCPP_INFO(this->get_logger(), "IMU angular random walk is %f", ang_rw_);
-  RCLCPP_INFO(this->get_logger(), "IMU accel bias random walk is %f", accel_bias_rw_);
-  RCLCPP_INFO(this->get_logger(), "IMU gyro bias random walk is %e", gyro_bias_rw_);
-  RCLCPP_INFO(this->get_logger(), "EKF's P initial std position is %e", P0_pos);
-  RCLCPP_INFO(this->get_logger(), "EKF's P initial std velocity is %e", P0_vel);
-  RCLCPP_INFO(this->get_logger(), "EKF's P initial std attitude XY is %e", P0_att_XY);
-  RCLCPP_INFO(this->get_logger(), "EKF's P initial std attitude Z is %e", P0_att_Z);
-  RCLCPP_INFO(this->get_logger(), "EKF's P initial std accel bias is %f", P0_ba);
-  RCLCPP_INFO(this->get_logger(), "EKF's P initial std gyro bias is %e", P0_bg);
-  RCLCPP_INFO(this->get_logger(), "EKF's P initial std radar scale is %e", P0_br);
+  RCLCPP_INFO_ONCE(this->get_logger(), "IMU velocity random walk is %f", vel_rw_);
+  RCLCPP_INFO_ONCE(this->get_logger(), "IMU angular random walk is %f", ang_rw_);
+  RCLCPP_INFO_ONCE(this->get_logger(), "IMU accel bias random walk is %f", accel_bias_rw_);
+  RCLCPP_INFO_ONCE(this->get_logger(), "IMU gyro bias random walk is %e", gyro_bias_rw_);
+  RCLCPP_INFO_ONCE(this->get_logger(), "EKF's P initial std position is %e", P0_pos);
+  RCLCPP_INFO_ONCE(this->get_logger(), "EKF's P initial std velocity is %e", P0_vel);
+  RCLCPP_INFO_ONCE(this->get_logger(), "EKF's P initial std attitude XY is %e", P0_att_XY);
+  RCLCPP_INFO_ONCE(this->get_logger(), "EKF's P initial std attitude Z is %e", P0_att_Z);
+  RCLCPP_INFO_ONCE(this->get_logger(), "EKF's P initial std accel bias is %f", P0_ba);
+  RCLCPP_INFO_ONCE(this->get_logger(), "EKF's P initial std gyro bias is %e", P0_bg);
+  RCLCPP_INFO_ONCE(this->get_logger(), "EKF's P initial std radar scale is %e", P0_br);
 
-  RCLCPP_INFO(this->get_logger(), "Radar scale factor random walk std is %e", radar_scale_rw_);
-  RCLCPP_INFO(this->get_logger(), "Radar filter: min_distance is %.2f", min_distance_);
-  RCLCPP_INFO(this->get_logger(), "Radar filter: max_distance is %.2f", max_distance_);
-  RCLCPP_INFO(this->get_logger(), "Radar filter: min_db is %.2f", min_db_);
-  RCLCPP_INFO(this->get_logger(), "Radar filter: elevation threshold is %.2f", elevation_threshold_);
-  RCLCPP_INFO(this->get_logger(), "Radar filter: azimuth threshold is %.2f", azimuth_threshold_);
-  RCLCPP_INFO(this->get_logger(), "Radar filter: zero velocity threshold is %.2f", zero_velocity_threshold_);
+  RCLCPP_INFO_ONCE(this->get_logger(), "Radar scale factor random walk std is %e", radar_scale_rw_);
+  RCLCPP_INFO_ONCE(this->get_logger(), "Radar filter: min_distance is %.2f", min_distance_);
+  RCLCPP_INFO_ONCE(this->get_logger(), "Radar filter: max_distance is %.2f", max_distance_);
+  RCLCPP_INFO_ONCE(this->get_logger(), "Radar filter: min_db is %.2f", min_db_);
+  RCLCPP_INFO_ONCE(this->get_logger(), "Radar filter: elevation threshold is %.2f", elevation_threshold_);
+  RCLCPP_INFO_ONCE(this->get_logger(), "Radar filter: azimuth threshold is %.2f", azimuth_threshold_);
+  RCLCPP_INFO_ONCE(this->get_logger(), "Radar filter: zero velocity threshold is %.2f", zero_velocity_threshold_);
 
-  RCLCPP_INFO(this->get_logger(), "RANSAC: nuber of points is %d", N_ransac_points_);
-  RCLCPP_INFO(this->get_logger(), "RANSAC: outlier probability is %.2f", outlier_prob_);
-  RCLCPP_INFO(this->get_logger(), "RANSAC: success probability is %f", success_prob_);
+  RCLCPP_INFO_ONCE(this->get_logger(), "RANSAC: nuber of points is %d", N_ransac_points_);
+  RCLCPP_INFO_ONCE(this->get_logger(), "RANSAC: outlier probability is %.2f", outlier_prob_);
+  RCLCPP_INFO_ONCE(this->get_logger(), "RANSAC: success probability is %f", success_prob_);
 
   noise_.velocity_random_walk    = vel_rw_;
   noise_.angular_random_walk     = ang_rw_;
@@ -360,7 +360,7 @@ void RunDeRO::LoadParameters() {
   state_.quaternion << 1.0, 0.0, 0.0, 0.0;
   state_.radar_scale << 1.0, 1.0, 1.0;
 
-  accel_roll_pitch_noise_ << 3.0 * D2R, 3.0 * D2R;
+  accel_roll_pitch_noise_ << 0.5 * D2R, 0.5 * D2R;
 
   if (!use_dr_structure) {
     ekf_rio_.setQ(noise_);
@@ -398,18 +398,18 @@ void RunDeRO::LoadParameters() {
   imu_radar_calibration_.rotation_matrix = offset_body_rot * quat2dcm(calib_quat_foo);
   imu_radar_calibration_.quaternion      = dcm2quat(imu_radar_calibration_.rotation_matrix);
 
-  RCLCPP_INFO(this->get_logger(), "IMU-Radar position offset is [%.2f %.2f %.2f] (m)",
+  RCLCPP_INFO_ONCE(this->get_logger(), "IMU-Radar position offset is [%.2f %.2f %.2f] (m)",
                                        imu_radar_calibration_.position(0, 0),
                                        imu_radar_calibration_.position(1, 0),
                                        imu_radar_calibration_.position(2, 0));
 
   Vec3d calib_euler_foo = quat2euler(imu_radar_calibration_.quaternion);
 
-  RCLCPP_INFO(this->get_logger(), "IMU-Radar attitude offset is [%.2f %.2f %.2f] (deg)",
+  RCLCPP_INFO_ONCE(this->get_logger(), "IMU-Radar attitude offset is [%.2f %.2f %.2f] (deg)",
                                        R2D * calib_euler_foo(0, 0),
                                        R2D * calib_euler_foo(1, 0),
                                        R2D * calib_euler_foo(2, 0));
-  RCLCPP_INFO(this->get_logger(), "Finished loading!");
+  RCLCPP_INFO_ONCE(this->get_logger(), "Finished loading!");
   // clang-format on
 
   if (use_dr_structure)
@@ -422,7 +422,7 @@ void RunDeRO::LoadParameters() {
 void RunDeRO::ImuCallback(const sensor_msgs::msg::Imu imu_msg) {
   std::lock_guard<std::mutex> lock(imu_mutex_);
   imu_data_received_ = true;
-  RCLCPP_DEBUG(this->get_logger(), "IMU: Data received!");
+  RCLCPP_INFO_ONCE(this->get_logger(), "IMU: Data received!");
 
   if (!use_dr_structure) {
     ekf_rio_.setImuCurrentTime(imu_msg.header.stamp.sec + imu_msg.header.stamp.nanosec * 1e-9);
@@ -466,6 +466,12 @@ void RunDeRO::ImuCallback(const sensor_msgs::msg::Imu imu_msg) {
 
   R_imu_body = euler2dcm(angle_offset);
 
+  RCLCPP_DEBUG(this->get_logger(), "IMU: Rotation matrix from IMU to body frame is");
+  RCLCPP_DEBUG(this->get_logger(), "[%.2f %.2f %.2f]", R_imu_body(0, 0), R_imu_body(0, 1), R_imu_body(0, 2));
+  RCLCPP_DEBUG(this->get_logger(), "[%.2f %.2f %.2f]", R_imu_body(1, 0), R_imu_body(1, 1), R_imu_body(1, 2));
+  RCLCPP_DEBUG(this->get_logger(), "[%.2f %.2f %.2f]", R_imu_body(2, 0), R_imu_body(2, 1), R_imu_body(2, 2));
+
+
   f_b_transformed = R_imu_body * f_b_raw;
   w_b_transformed = R_imu_body * w_b_raw;
 
@@ -490,7 +496,7 @@ void RunDeRO::RadarCallback(const sensor_msgs::msg::PointCloud2 radar_msg) {
   std::lock_guard<std::mutex> lock(radar_mutex_);
   radar_data_received_ = true;
 
-  RCLCPP_DEBUG(this->get_logger(), "Radar: Data received!");
+  RCLCPP_INFO_ONCE(this->get_logger(), "Radar: Data received!");
 
   if (!use_dr_structure) {
     ekf_rio_.setRadarCurrentTime(radar_msg.header.stamp.sec + radar_msg.header.stamp.nanosec * 1e-9);
@@ -552,76 +558,77 @@ void RunDeRO::RadarCallback(const sensor_msgs::msg::PointCloud2 radar_msg) {
 } // void RadarCallback
 
 void RunDeRO::MsgPublish() {
+
+  rclcpp::Time stamp_now_;
+
+  if (!groundtruth_included)
+    stamp_now_ = this->get_clock()->now();
+  else {
+    stamp_now_ = gt_msg.header.stamp;
+    geometry_msgs::msg::PoseStamped pose_gt_;
+
+    pose_gt_.pose.position.x = gt_msg.pose.position.y;
+    pose_gt_.pose.position.y = gt_msg.pose.position.x;
+    pose_gt_.pose.position.z = gt_msg.pose.position.z;
+
+    pose_gt_.pose.orientation.w = gt_msg.pose.orientation.w;
+    pose_gt_.pose.orientation.x = gt_msg.pose.orientation.x;
+    pose_gt_.pose.orientation.y = gt_msg.pose.orientation.y;
+    pose_gt_.pose.orientation.z = gt_msg.pose.orientation.z;
+
+    pose_gt_.header.stamp    = stamp_now_;
+    pose_gt_.header.frame_id = world_frame_id_;
+
+    pose_path_gt_.header.stamp    = stamp_now_;
+    pose_path_gt_.header.frame_id = world_frame_id_;
+    pose_path_gt_.poses.push_back(pose_gt_);
+
+    pose_path_gt_publisher_->publish(pose_path_gt_);
+  }
+
+  if (!use_dr_structure)
+    state_ = ekf_rio_.getState();
+  else
+    state_ = scekf_dero_.getState();
+
+  geometry_msgs::msg::TransformStamped pose_transform_;
+  pose_transform_.header.stamp    = stamp_now_;
+  pose_transform_.header.frame_id = world_frame_id_;
+  pose_transform_.child_frame_id  = robot_frame_id_;
+
+  pose_transform_.transform.translation.x = state_.position(0, 0);
+  pose_transform_.transform.translation.y = state_.position(1, 0);
+  pose_transform_.transform.translation.z = state_.position(2, 0);
+
+  pose_transform_.transform.rotation.w = state_.quaternion(0, 0);
+  pose_transform_.transform.rotation.x = state_.quaternion(1, 0);
+  pose_transform_.transform.rotation.y = state_.quaternion(2, 0);
+  pose_transform_.transform.rotation.z = state_.quaternion(3, 0);
+
+  tf_broadcaster_pose_->sendTransform(pose_transform_);
+
+  geometry_msgs::msg::TransformStamped radar_transform_;
+  radar_transform_.header.stamp    = stamp_now_;
+  radar_transform_.header.frame_id = robot_frame_id_;
+  radar_transform_.child_frame_id  = radar_frame_id_;
+
+  radar_transform_.transform.translation.x = imu_radar_calibration_.position(0, 0);
+  radar_transform_.transform.translation.y = imu_radar_calibration_.position(1, 0);
+  radar_transform_.transform.translation.z = imu_radar_calibration_.position(2, 0);
+
+  radar_transform_.transform.rotation.w = imu_radar_calibration_.quaternion(0, 0);
+  radar_transform_.transform.rotation.x = imu_radar_calibration_.quaternion(1, 0);
+  radar_transform_.transform.rotation.y = imu_radar_calibration_.quaternion(2, 0);
+  radar_transform_.transform.rotation.z = imu_radar_calibration_.quaternion(3, 0);
+
+  tf_broadcaster_radar_->sendTransform(radar_transform_);
+
+  // radar_data_pub_.header.frame_id = "tractor_radar_bosch_bottom";
+  // radar_data_pub_.header.stamp    = stamp_now_;
+  // radar_raw_publisher_->publish(radar_data_pub_);
+
+
   if (imu_data_received_ && radar_data_received_ && ekf_rio_init_) {
-
-    rclcpp::Time stamp_now_;
-
-    if (!groundtruth_included)
-      stamp_now_ = this->get_clock()->now();
-    else {
-      stamp_now_ = gt_msg.header.stamp;
-      geometry_msgs::msg::PoseStamped pose_gt_;
-
-      pose_gt_.pose.position.x = -gt_msg.pose.position.y;
-      pose_gt_.pose.position.y = -gt_msg.pose.position.x;
-      pose_gt_.pose.position.z = -gt_msg.pose.position.z;
-
-      pose_gt_.pose.orientation.w = gt_msg.pose.orientation.w;
-      pose_gt_.pose.orientation.x = gt_msg.pose.orientation.x;
-      pose_gt_.pose.orientation.y = gt_msg.pose.orientation.y;
-      pose_gt_.pose.orientation.z = gt_msg.pose.orientation.z;
-
-      pose_gt_.header.stamp    = stamp_now_;
-      pose_gt_.header.frame_id = world_frame_id_;
-
-      pose_path_gt_.header.stamp    = stamp_now_;
-      pose_path_gt_.header.frame_id = world_frame_id_;
-      pose_path_gt_.poses.push_back(pose_gt_);
-
-      pose_path_gt_publisher_->publish(pose_path_gt_);
-    }
-
-    if (!use_dr_structure)
-      state_ = ekf_rio_.getState();
-    else
-      state_ = scekf_dero_.getState();
-
-    geometry_msgs::msg::TransformStamped pose_transform_;
-    pose_transform_.header.stamp    = stamp_now_;
-    pose_transform_.header.frame_id = world_frame_id_;
-    pose_transform_.child_frame_id  = robot_frame_id_;
-
-    pose_transform_.transform.translation.x = state_.position(0, 0);
-    pose_transform_.transform.translation.y = state_.position(1, 0);
-    pose_transform_.transform.translation.z = state_.position(2, 0);
-
-    pose_transform_.transform.rotation.w = state_.quaternion(0, 0);
-    pose_transform_.transform.rotation.x = state_.quaternion(1, 0);
-    pose_transform_.transform.rotation.y = state_.quaternion(2, 0);
-    pose_transform_.transform.rotation.z = state_.quaternion(3, 0);
-
-    tf_broadcaster_pose_->sendTransform(pose_transform_);
-
-    geometry_msgs::msg::TransformStamped radar_transform_;
-    radar_transform_.header.stamp    = stamp_now_;
-    radar_transform_.header.frame_id = robot_frame_id_;
-    radar_transform_.child_frame_id  = radar_frame_id_;
-
-    radar_transform_.transform.translation.x = imu_radar_calibration_.position(0, 0);
-    radar_transform_.transform.translation.y = imu_radar_calibration_.position(1, 0);
-    radar_transform_.transform.translation.z = imu_radar_calibration_.position(2, 0);
-
-    radar_transform_.transform.rotation.w = imu_radar_calibration_.quaternion(0, 0);
-    radar_transform_.transform.rotation.x = imu_radar_calibration_.quaternion(1, 0);
-    radar_transform_.transform.rotation.y = imu_radar_calibration_.quaternion(2, 0);
-    radar_transform_.transform.rotation.z = imu_radar_calibration_.quaternion(3, 0);
-
-    tf_broadcaster_radar_->sendTransform(radar_transform_);
-
-    // radar_data_pub_.header.frame_id = "tractor_radar_bosch_bottom";
-    // radar_data_pub_.header.stamp    = stamp_now_;
-    // radar_raw_publisher_->publish(radar_data_pub_);
-
     sensor_msgs::msg::PointCloud2 radar_filtered_pcl2_ = radar_estimator_.getInlierRadarRos2PCL2();
 
     if (radar_filtered_pcl2_.header.frame_id.empty()) {
@@ -657,11 +664,11 @@ void RunDeRO::MsgPublish() {
 
 void RunDeRO::ShutdownHandler() {
   est_save.close();
-  RCLCPP_INFO(this->get_logger(), "Finished simulation!");
-  RCLCPP_INFO(this->get_logger(), "Skipping %d radar data due to initialization process", radar_skip);
-  RCLCPP_INFO(this->get_logger(), "Radar: Rejected %d / %d", radar_reject, radar_valid);
-  RCLCPP_INFO(this->get_logger(), "Accel: Rejected %d / %d", accel_reject, accel_valid);
-  RCLCPP_INFO(this->get_logger(), "ICP: Rejected %d / %d", icp_reject, icp_valid);
+  RCLCPP_INFO_ONCE(this->get_logger(), "Finished simulation!");
+  RCLCPP_INFO_ONCE(this->get_logger(), "Skipping %d radar data due to initialization process", radar_skip);
+  RCLCPP_INFO_ONCE(this->get_logger(), "Radar: Rejected %d / %d", radar_reject, radar_valid);
+  RCLCPP_INFO_ONCE(this->get_logger(), "Accel: Rejected %d / %d", accel_reject, accel_valid);
+  RCLCPP_INFO_ONCE(this->get_logger(), "ICP: Rejected %d / %d", icp_reject, icp_valid);
 
   if (!use_dr_structure) {
     state_ = ekf_rio_.getState();
@@ -670,18 +677,18 @@ void RunDeRO::ShutdownHandler() {
   }
 
   // clang-format off
-  RCLCPP_INFO(this->get_logger(), "Final Position [X, Y, Z] is [%.2f, %.2f, %.2f] (m)", state_.position(0, 0),
+  RCLCPP_INFO_ONCE(this->get_logger(), "Final Position [X, Y, Z] is [%.2f, %.2f, %.2f] (m)", state_.position(0, 0),
                                                                                              state_.position(1, 0),
                                                                                              state_.position(2, 0));
-  RCLCPP_INFO(this->get_logger(), "Final distance error w.r.t the origin is %.2f (m)",
+  RCLCPP_INFO_ONCE(this->get_logger(), "Final distance error w.r.t the origin is %.2f (m)",
                    std::sqrt(state_.position(0, 0) * state_.position(0, 0) +
                              state_.position(1, 0) * state_.position(1, 0) +
                              state_.position(2, 0) * state_.position(2, 0)));
-  RCLCPP_INFO(this->get_logger(), "Final Gyro Bias [X, Y, Z] is [%.2f, %.2f, %.2f] (deg/s)",
+  RCLCPP_INFO_ONCE(this->get_logger(), "Final Gyro Bias [X, Y, Z] is [%.2f, %.2f, %.2f] (deg/s)",
                    state_.gyro_bias(0, 0) * R2D,
                    state_.gyro_bias(1, 0) * R2D,
                    state_.gyro_bias(2, 0) * R2D);
-  RCLCPP_INFO(this->get_logger(), "Final Radar Scale [X, Y, Z] is [%.2f, %.2f, %.2f]", state_.radar_scale(0, 0),
+  RCLCPP_INFO_ONCE(this->get_logger(), "Final Radar Scale [X, Y, Z] is [%.2f, %.2f, %.2f]", state_.radar_scale(0, 0),
                                                                                             state_.radar_scale(1, 0),
                                                                                             state_.radar_scale(2, 0));
   // clang-format on
@@ -710,7 +717,7 @@ void RunDeRO::Run() {
     // clang-format on
 
     if (!ekf_rio_init_) {
-      RCLCPP_INFO(this->get_logger(), "Gathering IMU data for coarse alingment algorithm and initialization...");
+      RCLCPP_INFO_ONCE(this->get_logger(), "Gathering IMU data for coarse alingment algorithm and initialization...");
       // print imu_buff.size()
       // RCLCPP_INFO(this->get_logger(), "IMU: Data received! %d", imu_buff.size());
 
@@ -731,40 +738,40 @@ void RunDeRO::Run() {
           info_radar_dt_ = scekf_dero_.getRadarDt();
         }
 
-        RCLCPP_INFO(this->get_logger(), "Coarse alignment: using %llu IMU samples", imu_buff.size());
+        RCLCPP_INFO_ONCE(this->get_logger(), "Coarse alignment: using %llu IMU samples", imu_buff.size());
 
-        RCLCPP_INFO(this->get_logger(),
+        RCLCPP_INFO_ONCE(this->get_logger(),
                           "Coarse alignment: initial Euler angle [roll, pitch, yaw] is [%.2f, %.2f, %.2f] (degree)",
                           ca_state_.euler(0, 0) * R2D, ca_state_.euler(1, 0) * R2D, ca_state_.euler(2, 0) * R2D);
 
-        RCLCPP_INFO(this->get_logger(), "Initialization: gravitational constant is %.2f (m/s^2)", info_grav_);
+        RCLCPP_INFO_ONCE(this->get_logger(), "Initialization: gravitational constant is %.2f (m/s^2)", info_grav_);
 
-        RCLCPP_INFO(this->get_logger(), "Initialization: initial position [X, Y, Z] is [%.2f, %.2f, %.2f] (m)",
+        RCLCPP_INFO_ONCE(this->get_logger(), "Initialization: initial position [X, Y, Z] is [%.2f, %.2f, %.2f] (m)",
                           ca_state_.position(0, 0), ca_state_.position(1, 0), ca_state_.position(2, 0));
 
-        RCLCPP_INFO(this->get_logger(),
+        RCLCPP_INFO_ONCE(this->get_logger(),
                           "Initialization: initial Euler angle [X, Y, Z] is [%.2f, %.2f, %.2f] (deg)",
                           ca_state_.euler(0, 0) * R2D, ca_state_.euler(1, 0) * R2D, ca_state_.euler(2, 0) * R2D);
 
-        RCLCPP_INFO(this->get_logger(), "Initialization: initial velocity [X, Y, Z] is [%.2f, %.2f, %.2f] (m/s)",
+        RCLCPP_INFO_ONCE(this->get_logger(), "Initialization: initial velocity [X, Y, Z] is [%.2f, %.2f, %.2f] (m/s)",
                           ca_state_.velocity(0, 0), ca_state_.velocity(1, 0), ca_state_.velocity(2, 0));
 
-        RCLCPP_INFO(
+        RCLCPP_INFO_ONCE(
             this->get_logger(), "Initialization: initial gyroscope bias [X, Y, Z] is [%.2f, %.2f, %.2f] (degree/s)",
             ca_state_.gyro_bias(0, 0) * R2D, ca_state_.gyro_bias(1, 0) * R2D, ca_state_.gyro_bias(2, 0) * R2D);
 
-        RCLCPP_INFO(this->get_logger(),
+        RCLCPP_INFO_ONCE(this->get_logger(),
                           "Initialization: initial accelerometer bias [X, Y, Z] is [%.2f, %.2f, %.2f] (m/s^2)",
                           ca_state_.accel_bias(0, 0), ca_state_.accel_bias(1, 0), ca_state_.accel_bias(2, 0));
 
-        RCLCPP_INFO(this->get_logger(),
+        RCLCPP_INFO_ONCE(this->get_logger(),
                           "Initialization: initial radar scale vector [X, Y, Z] is [%.2f, %.2f, %.2f]",
                           ca_state_.radar_scale(0, 0), ca_state_.radar_scale(1, 0), ca_state_.radar_scale(2, 0));
 
-        RCLCPP_INFO(this->get_logger(), "Initialization: imu dt is %f (second)", info_imu_dt_);
+        RCLCPP_INFO_ONCE(this->get_logger(), "Initialization: imu dt is %f (second)", info_imu_dt_);
 
         if (use_radar)
-          RCLCPP_INFO(this->get_logger(), "Initialization: radar dt is %f (second)", info_radar_dt_);
+          RCLCPP_INFO_ONCE(this->get_logger(), "Initialization: radar dt is %f (second)", info_radar_dt_);
 
         ekf_rio_init_ = true;
         save_init_    = true;
@@ -877,7 +884,7 @@ void RunDeRO::Run() {
 
     if (!ekf_rio_init_) {
       radar_skip += 1;
-      RCLCPP_INFO(this->get_logger(), "Radar: Data received but rejected due to initialization process!");
+      RCLCPP_INFO_ONCE(this->get_logger(), "Radar: Data received but rejected due to initialization process!");
       radar_buff.clear();
 
     } else {
@@ -890,7 +897,7 @@ void RunDeRO::Run() {
       // RCLCPP_INFO(this->get_logger(), "ZUPT: %d", zupt_trigger);
 
       if (!use_dr_structure) {
-        RCLCPP_INFO(this->get_logger(), "Radar: Used as an aided sensor!");
+        RCLCPP_INFO_ONCE(this->get_logger(), "Radar: Used as an aided sensor!");
         ekf_rio_.setR_Radar(radar_estimator_.getEgoVelocityCovariance());
 
         Vec3d r_radar = Vec3d::Zero();
@@ -928,7 +935,7 @@ void RunDeRO::Run() {
           radar_reject += 1;
         }
       } else {
-        RCLCPP_INFO(this->get_logger(), "Radar: Used as a core sensor!");
+        RCLCPP_INFO_ONCE(this->get_logger(), "Radar: Used as a core sensor!");
 
         if (!accel_trigger) {
           const Vec3d v_r_r = radar_estimator_.getEgoVelocity();
