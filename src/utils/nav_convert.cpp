@@ -81,50 +81,56 @@ Mat3d euler2dcm(Vec3d &euler) {
 } // euler2dcm
 
 Vec4d dcm2quat(Mat3d &dcm) {
-  Vec4d quat = Vec4d::Zero();
+    Vec4d quat;
+    double trace = dcm.trace(); // Sum of diagonal elements
+    const double eps = 1e-6;    // Small epsilon for numerical stability
 
-  quat(0, 0) = std::sqrt(1.0 / 4.0 * (1.0 + dcm(0, 0) + dcm(1, 1) + dcm(2, 2)));
-  quat(1, 0) = std::sqrt(1.0 / 4.0 * (1.0 + dcm(0, 0) - dcm(1, 1) - dcm(2, 2)));
-  quat(2, 0) = std::sqrt(1.0 / 4.0 * (1.0 - dcm(0, 0) + dcm(1, 1) - dcm(2, 2)));
-  quat(3, 0) = std::sqrt(1.0 / 4.0 * (1.0 - dcm(0, 0) - dcm(1, 1) + dcm(2, 2)));
+    if (trace > 0.0) {
+        double s = 0.5 / sqrt(trace + 1.0);
+        quat(0) = 0.25 / s;
+        quat(1) = (dcm(2, 1) - dcm(1, 2)) * s;
+        quat(2) = (dcm(0, 2) - dcm(2, 0)) * s;
+        quat(3) = (dcm(1, 0) - dcm(0, 1)) * s;
+    } else {
+        if (dcm(0, 0) > dcm(1, 1) && dcm(0, 0) > dcm(2, 2)) {
+            double s = 2.0 * sqrt(1.0 + dcm(0, 0) - dcm(1, 1) - dcm(2, 2));
+            quat(0) = (dcm(2, 1) - dcm(1, 2)) / s;
+            quat(1) = 0.25 * s;
+            quat(2) = (dcm(0, 1) + dcm(1, 0)) / s;
+            quat(3) = (dcm(0, 2) + dcm(2, 0)) / s;
+        } else if (dcm(1, 1) > dcm(2, 2)) {
+            double s = 2.0 * sqrt(1.0 + dcm(1, 1) - dcm(0, 0) - dcm(2, 2));
+            quat(0) = (dcm(0, 2) - dcm(2, 0)) / s;
+            quat(1) = (dcm(0, 1) + dcm(1, 0)) / s;
+            quat(2) = 0.25 * s;
+            quat(3) = (dcm(1, 2) + dcm(2, 1)) / s;
+        } else {
+            double s = 2.0 * sqrt(1.0 + dcm(2, 2) - dcm(0, 0) - dcm(1, 1));
+            quat(0) = (dcm(1, 0) - dcm(0, 1)) / s;
+            quat(1) = (dcm(0, 2) + dcm(2, 0)) / s;
+            quat(2) = (dcm(1, 2) + dcm(2, 1)) / s;
+            quat(3) = 0.25 * s;
+        }
+    }
 
-  int max_idx = 1;
-  for (int i = 1; i <= 3; i++) {
-    if (quat(i, 0) > quat(max_idx, 0)) {
-      max_idx = i;
-    } // if
-  } // for
+    // Normalize the quaternion
+    double norm = quat.norm();
+    if (norm > eps) {
+        quat /= norm;
+    } else {
+        // Handle the zero quaternion case
+        quat.setZero();
+        quat(0) = 1.0;
+    }
 
-  if (max_idx == 0) {
-    quat(1, 0) = (dcm(2, 1) - dcm(1, 2)) / 4.0 / quat(0, 0);
-    quat(2, 0) = (dcm(0, 2) - dcm(2, 0)) / 4.0 / quat(0, 0);
-    quat(3, 0) = (dcm(1, 0) - dcm(0, 1)) / 4.0 / quat(0, 0);
+    // Ensure the scalar part is non-negative
+    if (quat(0) < 0.0) {
+        quat = -quat;
+    }
 
-  } else if (max_idx == 1) {
-    quat(0, 0) = (dcm(2, 1) - dcm(1, 2)) / 4.0 / quat(1, 0);
-    quat(2, 0) = (dcm(1, 0) - dcm(0, 1)) / 4.0 / quat(1, 0);
-    quat(3, 0) = (dcm(0, 2) - dcm(2, 0)) / 4.0 / quat(1, 0);
+    return quat;
+}
 
-  } else if (max_idx == 2) {
-    quat(0, 0) = (dcm(0, 2) - dcm(2, 0)) / 4.0 / quat(2, 0);
-    quat(1, 0) = (dcm(1, 0) - dcm(0, 1)) / 4.0 / quat(2, 0);
-    quat(3, 0) = (dcm(2, 1) - dcm(1, 2)) / 4.0 / quat(2, 0);
-
-  } else if (max_idx == 3) {
-    quat(0, 0) = (dcm(1, 0) - dcm(0, 1)) / 4.0 / quat(3, 0);
-    quat(1, 0) = (dcm(0, 2) - dcm(2, 0)) / 4.0 / quat(3, 0);
-    quat(2, 0) = (dcm(2, 1) - dcm(1, 2)) / 4.0 / quat(3, 0);
-
-  } // if
-
-  if (quat(0, 0) < 0.0) {
-    quat = -quat;
-  } // if
-
-  quat = quatNormalize(quat);
-
-  return quat;
-} // dcm2quat
 
 Vec3d dcm2euler(Mat3d &dcm) {
   Vec3d  euler = Vec3d::Zero();
