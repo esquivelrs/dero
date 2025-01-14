@@ -7,7 +7,7 @@ CONFIG_COMMON_DIR = PathJoinSubstitution([get_package_share_directory("dero"), "
 
 
 def generate_launch_description():
-    params = [PathJoinSubstitution([CONFIG_COMMON_DIR, "dero_carried_1.yaml"])] #dero_carried_1
+    params = [PathJoinSubstitution([CONFIG_COMMON_DIR, "rio_carried_1.yaml"])] #dero_carried_1
 
     
     # std_points = Node(
@@ -20,15 +20,15 @@ def generate_launch_description():
     #     ],
     # )  
 
-    dero_std_points = Node(
-        package="agrirobot_std_radar",
-        executable="agrirobot_dero_std_radar_node",
-        name="agrirobot_bosch_std_radar_node",
-        remappings=[
-            ("/in", "/sensor_platform/radar/scan"),
-            ("/out", "/tractor/radar/front/points"),
-        ],
-    )
+    # dero_std_points = Node(
+    #     package="agrirobot_std_radar",
+    #     executable="agrirobot_dero_std_radar_node",
+    #     name="agrirobot_bosch_std_radar_node",
+    #     remappings=[
+    #         ("/in", "/sensor_platform/radar/scan"),
+    #         ("/out", "/tractor/radar/front/points"),
+    #     ],
+    # )
     
     dero = Node(
         package="dero",
@@ -41,7 +41,7 @@ def generate_launch_description():
         ],
         remappings=[
             ("/input_imu", "/sensor_platform/imu"), # /sensor_platform/imu /tractor/lidar/front/imu/sync
-            ("/input_radar", "/tractor/radar/front/points"),
+            ("/input_radar", "/sensor_platform/radar/scan"),
         ],
         # prefix=['xterm -e gdb -ex run --args']
     )
@@ -50,7 +50,7 @@ def generate_launch_description():
     return LaunchDescription(
         [
             # std_points,
-            dero_std_points,
+            # dero_std_points,
             dero,
         ]
     )

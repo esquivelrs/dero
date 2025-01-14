@@ -30,8 +30,11 @@ find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(rosbag2_cpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(tf2 REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(tf2_sensor_msgs REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(PCL 1.10 REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(rosbag2_storage REQUIRED)
@@ -51,8 +54,11 @@ set(DEPENDENCIES
   "rosbag2_cpp"
   "nav_msgs"
   "geometry_msgs"
+  "tf2"
   "tf2_eigen"
   "tf2_ros"
+  "tf2_sensor_msgs"
+  "tf2_geometry_msgs"
 )
 
 add_library(dero_lib SHARED
@@ -85,8 +91,11 @@ ament_target_dependencies(scekf_dero_ros2bag_node
                           rosbag2_cpp
                           rosbag2_storage
                           geometry_msgs
+                          tf2
                           tf2_eigen
+                          tf2_geometry_msgs
                           tf2_ros
+                          tf2_sensor_msgs
                           pcl_conversions
 )
 
@@ -107,8 +116,11 @@ ament_target_dependencies(scekf_dero_node
                           sensor_msgs
                           nav_msgs
                           geometry_msgs
+                          tf2
                           tf2_eigen
+                          tf2_geometry_msgs
                           tf2_ros
+                          tf2_sensor_msgs
                           pcl_conversions
 )
 
@@ -120,8 +132,11 @@ ament_target_dependencies(dero_lib
                           rosbag2_cpp
                           rosbag2_storage
                           geometry_msgs
+                          tf2
                           tf2_eigen
+                          tf2_geometry_msgs
                           tf2_ros
+                          tf2_sensor_msgs
                           pcl_conversions
 )
 install(TARGETS

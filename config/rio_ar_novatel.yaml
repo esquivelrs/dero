@@ -1,12 +1,12 @@
 /radar/scekf_dero_node:
   ros__parameters:
-    est_save_dir: "/home/ros/rosbags_shared/dero_ar_novatel.txt"
+    est_save_dir: "/home/ros/rosbags_shared/rio_ar_novatel.txt"
 
     world_frame_id: "world"
     radar_frame_id: "tractor_radar_bosch_bottom"
     imu_frame_id: "tractor_gnss_left_imu"
     robot_frame_id: "base_link"
-    use_tf_from_params: false
+    use_tf_from_params: true
 
     # imu_body_rotation_offset_x: 1.019
     # imu_body_rotation_offset_y: 0.012
@@ -77,18 +77,18 @@
     gyro_bias_random_walk: 1.8326e-7              # From gyroscope bias instability
     radar_scale_random_walk: 1.0e-6               # Keeping the same unless radar specs have changed
 
-    use_radar: false
-    use_dr_structure: true
-    use_cloning: true
+    use_radar: true
+    use_dr_structure: false
+    use_cloning: false
     imu_only: false
     groundtruth_included: false
     radar_outlier_reject: true
     ros2_pub_rate: 30
-    coarse_alignment_window_size: 50
+    coarse_alignment_window_size: 5000
 
-    min_distance: 0.20
+    min_distance: 0.25
     max_distance: 300.0
-    min_db: 19.0
+    min_db: 3.0
     elevation_threshold: 120.0
     azimuth_threshold: 120.0
     velocity_correction_factor: 1.0
@@ -134,11 +134,11 @@
     # icp_std_z: 0.5
     # accel_angle_adapt: 2.0
 
-    max_corres_dis: 0.2
-    max_iter: 100
-    transform_eps: 0.0001
-    euclidean_fit_eps: 0.0001
-    cloning_window_size: 10
+    max_corres_dis: 4.0
+    max_iter: 500
+    transform_eps: 0.00000001
+    euclidean_fit_eps: 0.00000001
+    cloning_window_size: 3
     window_slicing: false
     ransac_outlier_reject_thres: 0.01
     icp_std_x: 0.5

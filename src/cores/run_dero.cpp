@@ -65,7 +65,105 @@ RunDeRO::RunDeRO(const rclcpp::NodeOptions & options)
 
   est_save.open(est_save_dir_);
 
+  initialize_tf();
+
 } // RunDeRO
+
+
+void RunDeRO::initialize_tf()
+{
+  tfBroadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
+  tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+
+  if (use_tf_from_params_) { PublishTF_file(); }
+  
+  while (!got_transform_) {
+    rclcpp::Time current_time = this->now();
+    got_transform_ = getTransform(robot_frame_id_, radar_frame_id_, T_r_b_, current_time);
+    got_transform_ = getTransform(robot_frame_id_, imu_frame_id_, T_i_b_, current_time);
+    // got_transform_ = getTransform(imu_frame_id_, radar_frame_id_, T_r_i_, current_time);
+
+    if (!got_transform_) {
+      RCLCPP_WARN(this->get_logger(), "TF not yet initialized, waiting...");
+      rclcpp::sleep_for(1s);
+    }
+  }
+
+  // clang-format off
+  imu_radar_calibration_.position << T_r_b_.transform.translation.x,
+                                     T_r_b_.transform.translation.y,
+                                     T_r_b_.transform.translation.z;
+
+  Vec4d calib_quat_foo;
+  calib_quat_foo << T_r_b_.transform.rotation.w,
+                    T_r_b_.transform.rotation.x,
+                    T_r_b_.transform.rotation.y,
+                    T_r_b_.transform.rotation.z;
+  
+  RCLCPP_INFO_ONCE(this->get_logger(), "IMU-Radar calibration quaternion is [%.2f %.2f %.2f %.2f]",
+                                       calib_quat_foo(0, 0),
+                                       calib_quat_foo(1, 0),
+                                       calib_quat_foo(2, 0),
+                                       calib_quat_foo(3, 0));
+
+  imu_radar_calibration_.rotation_matrix = quat2dcm(calib_quat_foo);
+  imu_radar_calibration_.quaternion      = dcm2quat(imu_radar_calibration_.rotation_matrix);
+
+  RCLCPP_INFO_ONCE(this->get_logger(), "IMU-Radar calibration full rotation matrix is");
+  RCLCPP_INFO_ONCE(this->get_logger(), "[%.2f %.2f %.2f]", imu_radar_calibration_.rotation_matrix(0, 0),
+                                                       imu_radar_calibration_.rotation_matrix(0, 1),
+                                                       imu_radar_calibration_.rotation_matrix(0, 2));
+  RCLCPP_INFO_ONCE(this->get_logger(), "[%.2f %.2f %.2f]", imu_radar_calibration_.rotation_matrix(1, 0),
+                                                        imu_radar_calibration_.rotation_matrix(1, 1),
+                                                        imu_radar_calibration_.rotation_matrix(1, 2));                                  
+  RCLCPP_INFO_ONCE(this->get_logger(), "[%.2f %.2f %.2f]", imu_radar_calibration_.rotation_matrix(2, 0),
+                                                        imu_radar_calibration_.rotation_matrix(2, 1),
+                                                        imu_radar_calibration_.rotation_matrix(2, 2));      
+
+  // Print quaternion values
+  RCLCPP_INFO_ONCE(this->get_logger(), "Quaternion: [%.6f %.6f %.6f %.6f]",
+              imu_radar_calibration_.quaternion(0, 0),
+              imu_radar_calibration_.quaternion(1, 0),
+              imu_radar_calibration_.quaternion(2, 0),
+              imu_radar_calibration_.quaternion(3, 0));
+
+
+  RCLCPP_INFO_ONCE(this->get_logger(), "IMU-Radar position offset is [%.2f %.2f %.2f] (m)",
+                                       imu_radar_calibration_.position(0, 0),
+                                       imu_radar_calibration_.position(1, 0),
+                                       imu_radar_calibration_.position(2, 0));
+
+  Vec3d calib_euler_foo = quat2euler(imu_radar_calibration_.quaternion);
+
+  RCLCPP_INFO_ONCE(this->get_logger(), "IMU-Radar attitude offset is [%.2f %.2f %.2f] (deg)",
+                                       R2D * calib_euler_foo(0, 0),
+                                       R2D * calib_euler_foo(1, 0),
+                                       R2D * calib_euler_foo(2, 0));
+  RCLCPP_INFO_ONCE(this->get_logger(), "Finished loading!");
+  // clang-format on
+
+  RCLCPP_INFO(this->get_logger(), "TF initialized, got_transform_: %d", got_transform_);
+
+}
+
+bool RunDeRO::getTransform(const std::string& target_frame, const std::string& source_frame, geometry_msgs::msg::TransformStamped &T, rclcpp::Time &time)
+{
+  // Look up for the transformation between target_frame and source_frame
+  try {
+    T = tf_buffer_->lookupTransform(
+      target_frame, source_frame,
+      time, rclcpp::Duration::from_seconds(1));
+    return true;
+  } catch (tf2::TransformException & ex) {
+    RCLCPP_ERROR(
+      this->get_logger(), "The following error occurred: %s", ex.what());
+    return false;
+  }
+}
+
+
+
 
 void RunDeRO::LoadParameters() {
   RCLCPP_INFO(this->get_logger(), "Loading Parameters...");
@@ -158,6 +256,7 @@ void RunDeRO::LoadParameters() {
   this->declare_parameter("icp_std_y", 0.0);
   this->declare_parameter("icp_std_z", 0.0);
   this->declare_parameter("accel_angle_adapt", 0.0);
+  this->declare_parameter("use_tf_from_params", false);
 
   this->get_parameter("imu_topic", imu_topic_name_);
   this->get_parameter("radar_topic", radar_topic_name_);
@@ -247,6 +346,7 @@ void RunDeRO::LoadParameters() {
   this->get_parameter("icp_std_y", icp_std_y_);
   this->get_parameter("icp_std_z", icp_std_z_);
   this->get_parameter("accel_angle_adapt", accel_angle_adapt_);
+  this->get_parameter("use_tf_from_params", use_tf_from_params_);
 
   radar_vel_est_param_.min_distance               = min_distance_;
   radar_vel_est_param_.max_distance               = max_distance_;
@@ -376,68 +476,6 @@ void RunDeRO::LoadParameters() {
     scekf_dero_.setGravityValue(grav_);
   }
 
-  // clang-format off
-  Vec3d offset_body_euler(imu_body_rotation_offset_x_ * D2R,
-                          imu_body_rotation_offset_y_ * D2R,
-                          imu_body_rotation_offset_z_ * D2R);
-
-  const Mat3d offset_body_rot = euler2dcm(offset_body_euler);
-
-  imu_radar_calibration_.position << imu_radar_position_offset_x_,
-                                     imu_radar_position_offset_y_,
-                                     imu_radar_position_offset_z_;
-
-
-  imu_radar_calibration_.position = imu_radar_calibration_.position;
-
-  Vec4d calib_quat_foo;
-  calib_quat_foo << imu_radar_quaternion_offset_w_,
-                    imu_radar_quaternion_offset_x_,
-                    imu_radar_quaternion_offset_y_,
-                    imu_radar_quaternion_offset_z_;
-  
-  RCLCPP_INFO_ONCE(this->get_logger(), "IMU-Radar calibration quaternion is [%.2f %.2f %.2f %.2f]",
-                                       calib_quat_foo(0, 0),
-                                       calib_quat_foo(1, 0),
-                                       calib_quat_foo(2, 0),
-                                       calib_quat_foo(3, 0));
-
-  imu_radar_calibration_.rotation_matrix = quat2dcm(calib_quat_foo);
-  imu_radar_calibration_.quaternion      = dcm2quat(imu_radar_calibration_.rotation_matrix);
-
-  RCLCPP_INFO_ONCE(this->get_logger(), "IMU-Radar calibration full rotation matrix is");
-  RCLCPP_INFO_ONCE(this->get_logger(), "[%.2f %.2f %.2f]", imu_radar_calibration_.rotation_matrix(0, 0),
-                                                       imu_radar_calibration_.rotation_matrix(0, 1),
-                                                       imu_radar_calibration_.rotation_matrix(0, 2));
-  RCLCPP_INFO_ONCE(this->get_logger(), "[%.2f %.2f %.2f]", imu_radar_calibration_.rotation_matrix(1, 0),
-                                                        imu_radar_calibration_.rotation_matrix(1, 1),
-                                                        imu_radar_calibration_.rotation_matrix(1, 2));                                  
-  RCLCPP_INFO_ONCE(this->get_logger(), "[%.2f %.2f %.2f]", imu_radar_calibration_.rotation_matrix(2, 0),
-                                                        imu_radar_calibration_.rotation_matrix(2, 1),
-                                                        imu_radar_calibration_.rotation_matrix(2, 2));      
-
-  // Print quaternion values
-  RCLCPP_INFO_ONCE(this->get_logger(), "Quaternion: [%.6f %.6f %.6f %.6f]",
-              imu_radar_calibration_.quaternion(0, 0),
-              imu_radar_calibration_.quaternion(1, 0),
-              imu_radar_calibration_.quaternion(2, 0),
-              imu_radar_calibration_.quaternion(3, 0));
-
-
-  RCLCPP_INFO_ONCE(this->get_logger(), "IMU-Radar position offset is [%.2f %.2f %.2f] (m)",
-                                       imu_radar_calibration_.position(0, 0),
-                                       imu_radar_calibration_.position(1, 0),
-                                       imu_radar_calibration_.position(2, 0));
-
-  Vec3d calib_euler_foo = quat2euler(imu_radar_calibration_.quaternion);
-
-  RCLCPP_INFO_ONCE(this->get_logger(), "IMU-Radar attitude offset is [%.2f %.2f %.2f] (deg)",
-                                       R2D * calib_euler_foo(0, 0),
-                                       R2D * calib_euler_foo(1, 0),
-                                       R2D * calib_euler_foo(2, 0));
-  RCLCPP_INFO_ONCE(this->get_logger(), "Finished loading!");
-  // clang-format on
-
   if (use_dr_structure)
     RCLCPP_INFO(this->get_logger(), "Running 3D Stochastic Cloning EKF Dead Reckoning Radar Odometry (SCEKF-DeRO)...");
   else
@@ -472,51 +510,88 @@ void RunDeRO::ImuCallback(const sensor_msgs::msg::Imu imu_msg) {
     scekf_dero_.setImuDt();
     scekf_dero_.setImuPreviousTime(scekf_dero_.getImuCurrentTime());
   }
-  // Transform IMU frame to vehicle's body frame
-  Vec3d f_b_raw, w_b_raw, angle_offset, f_b_transformed, w_b_transformed;
-  // clang-format off
-  f_b_raw << imu_msg.linear_acceleration.x,
-             imu_msg.linear_acceleration.y,
-             imu_msg.linear_acceleration.z;
-
-  w_b_raw << imu_msg.angular_velocity.x,
-             imu_msg.angular_velocity.y,
-             imu_msg.angular_velocity.z;
-
-  angle_offset << imu_body_rotation_offset_x_,
-                  imu_body_rotation_offset_y_,
-                  imu_body_rotation_offset_z_;
-  // clang-format on
-
-  angle_offset *= D2R;
-
-  R_imu_body = euler2dcm(angle_offset);
-
-  RCLCPP_DEBUG(this->get_logger(), "IMU: Rotation matrix from IMU to body frame is");
-  RCLCPP_DEBUG(this->get_logger(), "[%.2f %.2f %.2f]", R_imu_body(0, 0), R_imu_body(0, 1), R_imu_body(0, 2));
-  RCLCPP_DEBUG(this->get_logger(), "[%.2f %.2f %.2f]", R_imu_body(1, 0), R_imu_body(1, 1), R_imu_body(1, 2));
-  RCLCPP_DEBUG(this->get_logger(), "[%.2f %.2f %.2f]", R_imu_body(2, 0), R_imu_body(2, 1), R_imu_body(2, 2));
-
-
-  f_b_transformed = R_imu_body * f_b_raw;
-  w_b_transformed = R_imu_body * w_b_raw;
-
-  sensor_msgs::msg::Imu transformed_msg;
-
-  transformed_msg.header = imu_msg.header;
-
-  transformed_msg.orientation = imu_msg.orientation;
-
-  transformed_msg.linear_acceleration.x = f_b_transformed(0, 0);
-  transformed_msg.linear_acceleration.y = f_b_transformed(1, 0);
-  transformed_msg.linear_acceleration.z = f_b_transformed(2, 0);
-  transformed_msg.angular_velocity.x    = w_b_transformed(0, 0);
-  transformed_msg.angular_velocity.y    = w_b_transformed(1, 0);
-  transformed_msg.angular_velocity.z    = w_b_transformed(2, 0);
+  
+  // Transform IMU frame to vehicle's body frame with T_i_b_
+  sensor_msgs::msg::Imu transformed_msg = transformImuFrame(imu_msg, T_i_b_, robot_frame_id_);
 
   queue_imu_buff.push(transformed_msg);
 
 } // void ImuCallback
+
+
+sensor_msgs::msg::Imu RunDeRO::transformImuFrame(
+    const sensor_msgs::msg::Imu &imu_msg,
+    const geometry_msgs::msg::TransformStamped &transform_stamped,
+    const std::string &target_frame_id)
+{
+    sensor_msgs::msg::Imu transformed_msg = imu_msg;
+    transformed_msg.header.frame_id = target_frame_id;
+    
+    // 1. Build the quaternion (assuming IMU->base transform)
+    Eigen::Quaterniond q_base_imu(
+        transform_stamped.transform.rotation.w,
+        transform_stamped.transform.rotation.x,
+        transform_stamped.transform.rotation.y,
+        transform_stamped.transform.rotation.z
+    );
+    
+    // 2. Rotate raw IMU measurements into base frame
+    Eigen::Vector3d a_imu(imu_msg.linear_acceleration.x,
+                          imu_msg.linear_acceleration.y,
+                          imu_msg.linear_acceleration.z);
+    Eigen::Vector3d w_imu(imu_msg.angular_velocity.x,
+                          imu_msg.angular_velocity.y,
+                          imu_msg.angular_velocity.z);
+
+    // base frame measurements
+    Eigen::Vector3d a_base = q_base_imu * a_imu;
+    Eigen::Vector3d w_base = q_base_imu * w_imu;
+
+    // 3. Compute lever arm (in base frame)
+    Eigen::Vector3d lever_arm(
+        transform_stamped.transform.translation.x,
+        transform_stamped.transform.translation.y,
+        transform_stamped.transform.translation.z
+    );
+
+    // 4. Add extra acceleration: ω x (ω x r)
+    Eigen::Vector3d extra_acc = w_base.cross(w_base.cross(lever_arm));
+    a_base += extra_acc;
+
+    // If you have angular acceleration alpha_base, also do:
+    // a_base += alpha_base.cross(lever_arm);
+
+    // 5. Write back to the transformed IMU msg
+    transformed_msg.linear_acceleration.x = a_base.x();
+    transformed_msg.linear_acceleration.y = a_base.y();
+    transformed_msg.linear_acceleration.z = a_base.z();
+    
+    transformed_msg.angular_velocity.x = w_base.x();
+    transformed_msg.angular_velocity.y = w_base.y();
+    transformed_msg.angular_velocity.z = w_base.z();
+
+    return transformed_msg;
+}
+
+
+Eigen::Vector3d RunDeRO::nedToEnu(const Eigen::Vector3d& ned) {
+    Eigen::Matrix3d nedToEnuMatrix;
+    nedToEnuMatrix << 0, 1, 0,
+                      1, 0, 0,
+                      0, 0, -1;
+    return nedToEnuMatrix * ned;
+}
+
+State RunDeRO::transformStateNedToEnu(const State& state_ned) {
+    State state_enu;
+    state_enu.position = nedToEnu(state_ned.position);
+    state_enu.velocity = nedToEnu(state_ned.velocity);
+    state_enu.quaternion = state_ned.quaternion; // Quaternion transformation is more complex and depends on the specific use case
+    state_enu.accel_bias = nedToEnu(state_ned.accel_bias);
+    state_enu.gyro_bias = nedToEnu(state_ned.gyro_bias);
+    state_enu.radar_scale = nedToEnu(state_ned.radar_scale);
+    return state_enu;
+}
 
 void RunDeRO::RadarCallback(const sensor_msgs::msg::PointCloud2 radar_msg) {
   std::lock_guard<std::mutex> lock(radar_mutex_);
@@ -583,10 +658,43 @@ void RunDeRO::RadarCallback(const sensor_msgs::msg::PointCloud2 radar_msg) {
   }
 } // void RadarCallback
 
+
+void RunDeRO::PublishTF_file(){
+  rclcpp::Time stamp_now;
+  stamp_now = this->get_clock()->now();
+  geometry_msgs::msg::TransformStamped radar_transform_;
+  radar_transform_.header.stamp    = stamp_now;
+  radar_transform_.header.frame_id = robot_frame_id_;
+  radar_transform_.child_frame_id  = radar_frame_id_;
+
+  radar_transform_.transform.translation.x = imu_radar_position_offset_x_;
+  radar_transform_.transform.translation.y = imu_radar_position_offset_y_;
+  radar_transform_.transform.translation.z = imu_radar_position_offset_z_;
+  radar_transform_.transform.rotation.w = imu_radar_quaternion_offset_w_;
+  radar_transform_.transform.rotation.x = imu_radar_quaternion_offset_x_;
+  radar_transform_.transform.rotation.y = imu_radar_quaternion_offset_y_;
+  radar_transform_.transform.rotation.z = imu_radar_quaternion_offset_z_;
+  tf_broadcaster_radar_->sendTransform(radar_transform_);
+
+  geometry_msgs::msg::TransformStamped imu_transform_;
+  imu_transform_.header.stamp    = stamp_now;
+  imu_transform_.header.frame_id = robot_frame_id_;
+  imu_transform_.child_frame_id  = imu_frame_id_;
+
+  imu_transform_.transform.translation.x = 0.0;
+  imu_transform_.transform.translation.y = 0.0;
+  imu_transform_.transform.translation.z = 0.0;
+  imu_transform_.transform.rotation.w = 1.0;
+  imu_transform_.transform.rotation.x = 0.0;
+  imu_transform_.transform.rotation.y = 0.0;
+  imu_transform_.transform.rotation.z = 0.0;
+  tf_broadcaster_radar_->sendTransform(imu_transform_);
+}
+
 void RunDeRO::MsgPublish() {
 
   rclcpp::Time stamp_now_;
-
+  
   if (!groundtruth_included)
     stamp_now_ = this->get_clock()->now();
   else {
@@ -611,43 +719,34 @@ void RunDeRO::MsgPublish() {
 
     pose_path_gt_publisher_->publish(pose_path_gt_);
   }
+  
+
+  if (use_tf_from_params_) { PublishTF_file(); }
 
   if (!use_dr_structure)
     state_ = ekf_rio_.getState();
   else
     state_ = scekf_dero_.getState();
 
+
+  State state_enu_ = transformStateNedToEnu(state_);
+
   geometry_msgs::msg::TransformStamped pose_transform_;
   pose_transform_.header.stamp    = stamp_now_;
   pose_transform_.header.frame_id = world_frame_id_;
   pose_transform_.child_frame_id  = robot_frame_id_;
 
-  pose_transform_.transform.translation.x = state_.position(0, 0);
-  pose_transform_.transform.translation.y = state_.position(1, 0);
-  pose_transform_.transform.translation.z = state_.position(2, 0);
+  pose_transform_.transform.translation.x = state_enu_.position(0, 0);
+  pose_transform_.transform.translation.y = state_enu_.position(1, 0);
+  pose_transform_.transform.translation.z = state_enu_.position(2, 0);
 
-  pose_transform_.transform.rotation.w = state_.quaternion(0, 0);
-  pose_transform_.transform.rotation.x = state_.quaternion(1, 0);
-  pose_transform_.transform.rotation.y = state_.quaternion(2, 0);
-  pose_transform_.transform.rotation.z = state_.quaternion(3, 0);
+  pose_transform_.transform.rotation.w = state_enu_.quaternion(0, 0);
+  pose_transform_.transform.rotation.x = state_enu_.quaternion(1, 0);
+  pose_transform_.transform.rotation.y = state_enu_.quaternion(2, 0);
+  pose_transform_.transform.rotation.z = state_enu_.quaternion(3, 0);
 
   tf_broadcaster_pose_->sendTransform(pose_transform_);
 
-  geometry_msgs::msg::TransformStamped radar_transform_;
-  radar_transform_.header.stamp    = stamp_now_;
-  radar_transform_.header.frame_id = robot_frame_id_;
-  radar_transform_.child_frame_id  = radar_frame_id_;
-
-  radar_transform_.transform.translation.x = imu_radar_calibration_.position(0, 0);
-  radar_transform_.transform.translation.y = imu_radar_calibration_.position(1, 0);
-  radar_transform_.transform.translation.z = imu_radar_calibration_.position(2, 0);
-
-  radar_transform_.transform.rotation.w = imu_radar_calibration_.quaternion(0, 0);
-  radar_transform_.transform.rotation.x = imu_radar_calibration_.quaternion(1, 0);
-  radar_transform_.transform.rotation.y = imu_radar_calibration_.quaternion(2, 0);
-  radar_transform_.transform.rotation.z = imu_radar_calibration_.quaternion(3, 0);
-
-  tf_broadcaster_radar_->sendTransform(radar_transform_);
 
   // radar_data_pub_.header.frame_id = "tractor_radar_bosch_bottom";
   // radar_data_pub_.header.stamp    = stamp_now_;
@@ -668,14 +767,14 @@ void RunDeRO::MsgPublish() {
 
     geometry_msgs::msg::PoseStamped pose_;
 
-    pose_.pose.position.x = state_.position(0, 0);
-    pose_.pose.position.y = state_.position(1, 0);
-    pose_.pose.position.z = state_.position(2, 0);
+    pose_.pose.position.x = state_enu_.position(0, 0);
+    pose_.pose.position.y = state_enu_.position(1, 0);
+    pose_.pose.position.z = state_enu_.position(2, 0);
 
-    pose_.pose.orientation.w = state_.quaternion(0, 0);
-    pose_.pose.orientation.x = state_.quaternion(1, 0);
-    pose_.pose.orientation.y = state_.quaternion(2, 0);
-    pose_.pose.orientation.z = state_.quaternion(3, 0);
+    pose_.pose.orientation.w = state_enu_.quaternion(0, 0);
+    pose_.pose.orientation.x = state_enu_.quaternion(1, 0);
+    pose_.pose.orientation.y = state_enu_.quaternion(2, 0);
+    pose_.pose.orientation.z = state_enu_.quaternion(3, 0);
 
     pose_.header.stamp    = stamp_now_;
     pose_.header.frame_id = world_frame_id_;
