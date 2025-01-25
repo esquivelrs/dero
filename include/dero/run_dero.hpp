@@ -248,6 +248,7 @@ class RunDeRO : public rclcpp::Node {
     Init                        init_;
     Noise                       noise_;
     State                       state_;
+    State                       state_enu_;
     State                       first_window;
     EkfRio                      ekf_rio_;
     ErrorState                  error_state_;

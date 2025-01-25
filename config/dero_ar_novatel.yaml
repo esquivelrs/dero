@@ -1,6 +1,6 @@
 /radar/scekf_dero_node:
   ros__parameters:
-    est_save_dir: "/home/ros/rosbags_shared/dero_ar_novatel.txt"
+    est_save_dir: "/home/ros/ws/results_ws/trajectory/seq01/AR1_01_DeRO.txt"
 
     world_frame_id: "world"
     radar_frame_id: "tractor_radar_bosch_bottom"
@@ -63,21 +63,21 @@
 
     # Initial Covariance Values
     P_init_position: 1.0e-10             # Assuming precise initial position
-    P_init_velocity: 1.0e-10             # Assuming precise initial velocity
-    P_init_attitude_XY: 1.0e-10          # Assuming precise initial attitude in XY
-    P_init_attitude_Z: 1.0e-10           # Assuming precise initial attitude in Z
+    P_init_velocity: 1.0e-1            # Assuming precise initial velocity
+    P_init_attitude_XY: 1.0e-2          # Assuming precise initial attitude in XY
+    P_init_attitude_Z: 1.0e-2           # Assuming precise initial attitude in Z
     P_init_accel_bias: 3.7201e-07        # Calculated from accelerometer bias instability
     P_init_gyro_bias: 1.2097e-10         # Calculated from gyroscope bias instability
     P_init_radar_scale: 1.0e-6           # Keeping the same unless radar specs have changed
 
     # Process Noise Parameters
     velocity_random_walk: 0.0014492691797967651   # From accelerometer noise density
-    angular_random_walk: 3.473e-5                 # From gyroscope noise density
-    accel_bias_random_walk: 1.0167e-5             # From accelerometer bias instability
-    gyro_bias_random_walk: 1.8326e-7              # From gyroscope bias instability
+    angular_random_walk: 3.473e-4                 # From gyroscope noise density
+    accel_bias_random_walk: 1.0167e-4             # From accelerometer bias instability
+    gyro_bias_random_walk: 1.8326e-6              # From gyroscope bias instability
     radar_scale_random_walk: 1.0e-6               # Keeping the same unless radar specs have changed
 
-    use_radar: false
+    use_radar: true
     use_dr_structure: true
     use_cloning: true
     imu_only: false

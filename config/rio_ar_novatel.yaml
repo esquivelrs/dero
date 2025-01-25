@@ -6,7 +6,7 @@
     radar_frame_id: "tractor_radar_bosch_bottom"
     imu_frame_id: "tractor_gnss_left_imu"
     robot_frame_id: "base_link"
-    use_tf_from_params: true
+    use_tf_from_params: false
 
     # imu_body_rotation_offset_x: 1.019
     # imu_body_rotation_offset_y: 0.012
@@ -78,17 +78,17 @@
     radar_scale_random_walk: 1.0e-6               # Keeping the same unless radar specs have changed
 
     use_radar: true
-    use_dr_structure: false
-    use_cloning: false
+    use_dr_structure: true
+    use_cloning: true
     imu_only: false
     groundtruth_included: false
     radar_outlier_reject: true
     ros2_pub_rate: 30
-    coarse_alignment_window_size: 5000
+    coarse_alignment_window_size: 50
 
     min_distance: 0.25
     max_distance: 300.0
-    min_db: 3.0
+    min_db: 20.0
     elevation_threshold: 120.0
     azimuth_threshold: 120.0
     velocity_correction_factor: 1.0
@@ -138,7 +138,7 @@
     max_iter: 500
     transform_eps: 0.00000001
     euclidean_fit_eps: 0.00000001
-    cloning_window_size: 3
+    cloning_window_size: 5
     window_slicing: false
     ransac_outlier_reject_thres: 0.01
     icp_std_x: 0.5

@@ -64,6 +64,9 @@ RunDeRO::RunDeRO(const rclcpp::NodeOptions & options)
   // pose_path_gt_publisher_ = this->create_publisher<nav_msgs::msg::Path>("/gt_path", qos);
 
   est_save.open(est_save_dir_);
+  if (!est_save.is_open()) {
+    RCLCPP_ERROR(this->get_logger(), "Cannot open the file to save the estimation data!");
+  }
 
   initialize_tf();
 
@@ -161,9 +164,6 @@ bool RunDeRO::getTransform(const std::string& target_frame, const std::string& s
     return false;
   }
 }
-
-
-
 
 void RunDeRO::LoadParameters() {
   RCLCPP_INFO(this->get_logger(), "Loading Parameters...");
@@ -488,6 +488,8 @@ void RunDeRO::ImuCallback(const sensor_msgs::msg::Imu imu_msg) {
   imu_data_received_ = true;
   RCLCPP_INFO_ONCE(this->get_logger(), "IMU: Data received!");
 
+  // RCLCPP_INFO(this->get_logger(), "IMU: CURRENT TIME: %d.%d", imu_msg.header.stamp.sec, imu_msg.header.stamp.nanosec);
+
   if (!use_dr_structure) {
     ekf_rio_.setImuCurrentTime(imu_msg.header.stamp.sec + imu_msg.header.stamp.nanosec * 1e-9);
 
@@ -517,7 +519,6 @@ void RunDeRO::ImuCallback(const sensor_msgs::msg::Imu imu_msg) {
   queue_imu_buff.push(transformed_msg);
 
 } // void ImuCallback
-
 
 sensor_msgs::msg::Imu RunDeRO::transformImuFrame(
     const sensor_msgs::msg::Imu &imu_msg,
@@ -628,6 +629,7 @@ void RunDeRO::RadarCallback(const sensor_msgs::msg::PointCloud2 radar_msg) {
   } else {
 
     double radar_current_time_ = radar_msg.header.stamp.sec + radar_msg.header.stamp.nanosec * 1e-9;
+    // RCLCPP_INFO(this->get_logger(), "Radar current time: %f", radar_current_time_);
 
     if ((radar_current_time_ <= scekf_dero_.getRadarPreviousTime()) && ekf_rio_init_) {
       RCLCPP_ERROR(this->get_logger(),
@@ -729,7 +731,7 @@ void RunDeRO::MsgPublish() {
     state_ = scekf_dero_.getState();
 
 
-  State state_enu_ = transformStateNedToEnu(state_);
+  state_enu_ = transformStateNedToEnu(state_);
 
   geometry_msgs::msg::TransformStamped pose_transform_;
   pose_transform_.header.stamp    = stamp_now_;
@@ -827,10 +829,21 @@ void RunDeRO::Run() {
   sensor_msgs::msg::PointCloud2   extracted_radar_msg;
   geometry_msgs::msg::PoseStamped extracted_gt_msg;
 
+  // if (!use_dr_structure) {
+  //   // print timestamp in seconds ekf_rio_
+  //   RCLCPP_INFO(this->get_logger(), "EKF: IMU timestamp %d", ekf_rio_.getImuCurrentTime());
+  //   RCLCPP_INFO(this->get_logger(), "EKF: Radar timestamp %d", ekf_rio_.getRadarCurrentTime());
+
+  // } else {
+  //   // print timestamp in seconds scekf_dero_
+  //   RCLCPP_INFO(this->get_logger(), "SCEKF-DeRO: IMU timestamp %d", scekf_dero_.getImuCurrentTime());
+  //   RCLCPP_INFO(this->get_logger(), "SCEKF-DeRO: Radar timestamp %d", scekf_dero_.getRadarCurrentTime());
+  // }
+
   std::lock_guard<std::mutex> imu_lock(imu_mutex_);
   if (!queue_imu_buff.empty()) {
     imu_buff.emplace_back(queue_imu_buff.front());
-
+    
     // clang-format off
     w_b_raw << imu_buff.front().angular_velocity.x,
                 imu_buff.front().angular_velocity.y,
@@ -843,8 +856,6 @@ void RunDeRO::Run() {
 
     if (!ekf_rio_init_) {
       RCLCPP_INFO_ONCE(this->get_logger(), "Gathering IMU data for coarse alingment algorithm and initialization...");
-      // print imu_buff.size()
-      // RCLCPP_INFO(this->get_logger(), "IMU: Data received! %d", imu_buff.size());
 
       if (groundtruth_data_received_ || imu_buff.size() >= ca_wind_) {
 
@@ -1007,6 +1018,9 @@ void RunDeRO::Run() {
   if (!queue_radar_buff.empty() && !imu_only && use_radar) {
     radar_buff.emplace_back(queue_radar_buff.front());
 
+    // RCLCPP_INFO(this->get_logger(), "Radar size: %d", radar_buff.size());
+
+
     if (!ekf_rio_init_) {
       radar_skip += 1;
       RCLCPP_INFO_ONCE(this->get_logger(), "Radar: Data received but rejected due to initialization process!");
@@ -1133,6 +1147,10 @@ void RunDeRO::Run() {
             ICPTransform icp_meas = radar_estimator_.solveICP(first_window_radar_scan_inlier, end_radar_scan_inlier,
                                                               radar_pos_est_param_, icp_init_pose);
 
+            // RCLCPP_INFO(this->get_logger(), "ICP: [%.2f %.2f %.2f]", icp_meas.translation(0, 0),
+            //                                                        icp_meas.translation(1, 0),
+            //                                                        icp_meas.translation(2, 0));
+
             ca_state_ = scekf_dero_.getCoarseAlignmentState();
             state_    = scekf_dero_.getState();
 
@@ -1232,6 +1250,8 @@ void RunDeRO::Run() {
       state_                     = scekf_dero_.getState();
     }
 
+    state_enu_ = transformStateNedToEnu(state_);
+
     Vec3d v_r_est = radar_estimator_.getEgoVelocity();
 
     est_save.precision(19);
@@ -1264,23 +1284,23 @@ void RunDeRO::Run() {
     }
 
     for (int i = 0; i < 3; ++i)
-      est_save << state_.position(i, 0) << " ";
+      est_save << state_enu_.position(i, 0) << " ";
 
     const bool rpg_save = true;
 
     if (!use_dr_structure && !rpg_save)
       for (int i = 0; i < 3; ++i)
-        est_save << state_.velocity(i, 0) << " ";
+        est_save << state_enu_.velocity(i, 0) << " ";
 
     if (!rpg_save) {
       for (int i = 0; i < 4; ++i)
-        est_save << state_.quaternion(i, 0) << " ";
+        est_save << state_enu_.quaternion(i, 0) << " ";
     } else {
       // clang-format off
-      est_save << state_.quaternion(1, 0) << " "
-                << state_.quaternion(2, 0) << " "
-                << state_.quaternion(3, 0) << " "
-                << state_.quaternion(0, 0) << std::endl;
+      est_save << state_enu_.quaternion(1, 0) << " "
+                << state_enu_.quaternion(2, 0) << " "
+                << state_enu_.quaternion(3, 0) << " "
+                << state_enu_.quaternion(0, 0) << std::endl;
       // clang-format on
     }
 

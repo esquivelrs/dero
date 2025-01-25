@@ -7,7 +7,7 @@ CONFIG_COMMON_DIR = PathJoinSubstitution([get_package_share_directory("dero"), "
 
 
 def generate_launch_description():
-    params = [PathJoinSubstitution([CONFIG_COMMON_DIR, "rio_carried_1.yaml"])] #dero_carried_1
+    params = [PathJoinSubstitution([CONFIG_COMMON_DIR, "dero_carried_1.yaml"])] #dero_carried_1
 
     
     # std_points = Node(
