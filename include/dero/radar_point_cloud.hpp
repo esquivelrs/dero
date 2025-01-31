@@ -66,6 +66,28 @@ struct StdPointRadar
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 } EIGEN_ALIGN16;
 
+struct StdPointRadarOffHW
+{
+  PCL_ADD_POINT4D;
+  float radial_distance;
+  float radial_velocity;
+  float azimuth_angle;
+  float elevation_angle;
+  float radar_cross_section;
+  float signal_noise_ratio;
+  float radial_distance_variance;
+  float radial_velocity_variance;
+  float azimuth_angle_variance;
+  float elevation_angle_variance;
+  float radial_distance_velocity_covariance;
+  float velocity_resolution_processing_probability;
+  float azimuth_angle_probability;
+  float elevation_angle_probability;
+  float measurement_status;
+  float idx_azimuth_ambiguity_peer;
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+} EIGEN_ALIGN16;
+
 
 struct RadarIndex {
     uint azimuth   = 0;

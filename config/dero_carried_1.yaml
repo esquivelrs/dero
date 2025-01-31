@@ -1,6 +1,6 @@
 /radar/scekf_dero_node:
   ros__parameters:
-    est_save_dir: "/home/ros/rosbags_shared/dero_c1.txt"
+    est_save_dir: "/home/ros/ws/results_ws/trajectory/dero_c1_2.txt"
 
     world_frame_id: "world"
     radar_frame_id: "radar"

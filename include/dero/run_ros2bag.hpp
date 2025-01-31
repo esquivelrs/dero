@@ -76,6 +76,7 @@ class RunRos2Bag : public rclcpp::Node {
     std::string groundtruth_topic_name_;
     std::string est_save_dir_;
     std::string bag_dir;
+    std::string storage_id;
 
     std::ofstream est_save;
 
@@ -230,6 +231,7 @@ class RunRos2Bag : public rclcpp::Node {
     Init                        init_;
     Noise                       noise_;
     State                       state_;
+    State                       state_enu_;
     State                       first_window;
     EkfRio                      ekf_rio_;
     ErrorState                  error_state_;
@@ -273,6 +275,8 @@ class RunRos2Bag : public rclcpp::Node {
     void ImuCallback(const sensor_msgs::msg::Imu imu_msg);
     void RadarCallback(const sensor_msgs::msg::PointCloud2 radar_msg);
     void ShutdownHandler();
+    Eigen::Vector3d nedToEnu(const Eigen::Vector3d& ned);
+    State transformStateNedToEnu(const State& state_ned);
 }; // class RunRos2Bag
 } // namespace incsl
 

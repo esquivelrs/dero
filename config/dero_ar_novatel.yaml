@@ -1,6 +1,6 @@
 /radar/scekf_dero_node:
   ros__parameters:
-    est_save_dir: "/home/ros/ws/results_ws/trajectory/seq01/AR1_01_DeRO.txt"
+    est_save_dir: "/home/ros/ws/results_ws/trajectory/seq01/AR1_01_DeRO_OPT.txt"
 
     world_frame_id: "world"
     radar_frame_id: "tractor_radar_bosch_bottom"

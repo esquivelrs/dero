@@ -56,11 +56,11 @@ void ScEkfDero::InitializeState(const std::vector<sensor_msgs::msg::Imu> &imu_bu
                               std::sqrt(f_b_mean(1, 0) * f_b_mean(1, 0) + f_b_mean(2, 0) * f_b_mean(2, 0)));
   // clang-format on
 
-  // Maximum pitch/roll you allow on flat ground (in radians)
-  const double max_angle = 10.0 * M_PI / 180.0; 
+  // // Maximum pitch/roll you allow on flat ground (in radians)
+  // const double max_angle = 10.0 * M_PI / 180.0; 
 
-  phi_0   = std::max(std::min(phi_0,   max_angle), -max_angle);
-  theta_0 = std::max(std::min(theta_0, max_angle), -max_angle);
+  // phi_0   = std::max(std::min(phi_0,   max_angle), -max_angle);
+  // theta_0 = std::max(std::min(theta_0, max_angle), -max_angle);
 
 
   ca_state.gyro_bias   = w_b_mean;
@@ -312,10 +312,7 @@ bool ScEkfDero::RadarMeasurementUpdate(IMURadarCalibrationParam &imu_radar_calib
 
     boost::math::chi_squared chiSquaredDist(5.0);
     const double             gamma_thresh = boost::math::quantile(chiSquaredDist, 1 - 0.05);
-    // print gamma and gamma_thresh
-    // std::cout << "gamma: " << gamma << std::endl;
-    // std::cout << "gamma_thresh: " << gamma_thresh << std::endl;
-    
+
     if (gamma < gamma_thresh) {
       covariance_matrix_cloning.posteriori = Mat18d::Zero();
       covariance_matrix_cloning.posteriori = (Mat18d::Identity() - K_radar * H) * covariance_matrix_cloning.priori *

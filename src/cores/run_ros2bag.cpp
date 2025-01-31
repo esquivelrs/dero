@@ -98,6 +98,7 @@ RunRos2Bag::RunRos2Bag(std::string node_name) : rclcpp::Node(node_name) {
   this->declare_parameter("use_dr_structure", false);
   this->declare_parameter("radar_outlier_reject", false);
   this->declare_parameter("bag_dir", "");
+  this->declare_parameter("storage_id", "sqlite3");
   this->declare_parameter("max_corres_dis", 0.0);
   this->declare_parameter("transform_eps", 0.0);
   this->declare_parameter("max_iter", 0);
@@ -214,6 +215,7 @@ void RunRos2Bag::LoadParameters() {
   this->get_parameter("window_slicing", window_slicing);
   this->get_parameter("ransac_outlier_reject_thres", ransac_outlier_reject_thres);
   this->get_parameter("bag_dir", bag_dir);
+  this->get_parameter("storage_id", storage_id);
   this->get_parameter("icp_std_x", icp_std_x_);
   this->get_parameter("icp_std_y", icp_std_y_);
   this->get_parameter("icp_std_z", icp_std_z_);
@@ -555,6 +557,9 @@ void RunRos2Bag::MsgPublish() {
     else
       state_ = scekf_dero_.getState();
 
+    
+    // state_enu_ = transformStateNedToEnu(state_);
+
     geometry_msgs::msg::TransformStamped pose_transform_;
     pose_transform_.header.stamp    = stamp_now_;
     pose_transform_.header.frame_id = "world";
@@ -658,9 +663,30 @@ void RunRos2Bag::ShutdownHandler() {
   rclcpp::shutdown();
 } // void ShutdownHandler
 
+
+Eigen::Vector3d RunRos2Bag::nedToEnu(const Eigen::Vector3d& ned) {
+    Eigen::Matrix3d nedToEnuMatrix;
+    nedToEnuMatrix << 0, 1, 0,
+                      1, 0, 0,
+                      0, 0, -1;
+    return nedToEnuMatrix * ned;
+}
+
+State RunRos2Bag::transformStateNedToEnu(const State& state_ned) {
+    State state_enu;
+    state_enu.position = nedToEnu(state_ned.position);
+    state_enu.velocity = nedToEnu(state_ned.velocity);
+    state_enu.quaternion = state_ned.quaternion; // Quaternion transformation is more complex and depends on the specific use case
+    state_enu.accel_bias = nedToEnu(state_ned.accel_bias);
+    state_enu.gyro_bias = nedToEnu(state_ned.gyro_bias);
+    state_enu.radar_scale = nedToEnu(state_ned.radar_scale);
+    return state_enu;
+}
+
+
 void RunRos2Bag::Run() {
   storage_options.uri                           = bag_dir;
-  storage_options.storage_id                    = "sqlite3";
+  storage_options.storage_id                    = storage_id;
   converter_options.output_serialization_format = "cdr";
 
   rosbag2_cpp::Reader reader(std::make_unique<rosbag2_cpp::readers::SequentialReader>());
@@ -1070,6 +1096,8 @@ void RunRos2Bag::Run() {
         state_                     = scekf_dero_.getState();
       }
 
+      state_enu_ = transformStateNedToEnu(state_);
+
       Vec3d v_r_est = radar_estimator_.getEgoVelocity();
 
       est_save.precision(19);
@@ -1102,37 +1130,37 @@ void RunRos2Bag::Run() {
       }
 
       for (int i = 0; i < 3; ++i)
-        est_save << state_.position(i, 0) << " ";
+        est_save << state_enu_.position(i, 0) << " ";
 
       const bool rpg_save = true;
 
       if (!use_dr_structure && !rpg_save)
         for (int i = 0; i < 3; ++i)
-          est_save << state_.velocity(i, 0) << " ";
+          est_save << state_enu_.velocity(i, 0) << " ";
 
       if (!rpg_save) {
         for (int i = 0; i < 4; ++i)
-          est_save << state_.quaternion(i, 0) << " ";
+          est_save << state_enu_.quaternion(i, 0) << " ";
       } else {
         // clang-format off
-        est_save << state_.quaternion(1, 0) << " "
-                 << state_.quaternion(2, 0) << " "
-                 << state_.quaternion(3, 0) << " "
-                 << state_.quaternion(0, 0) << std::endl;
+        est_save << state_enu_.quaternion(1, 0) << " "
+                 << state_enu_.quaternion(2, 0) << " "
+                 << state_enu_.quaternion(3, 0) << " "
+                 << state_enu_.quaternion(0, 0) << std::endl;
         // clang-format on
       }
 
       if (!rpg_save) {
         if (!use_dr_structure)
           for (int i = 0; i < 3; ++i)
-            est_save << state_.accel_bias(i, 0) << " ";
+            est_save << state_enu_.accel_bias(i, 0) << " ";
 
         for (int i = 0; i < 3; ++i)
-          est_save << state_.gyro_bias(i, 0) << " ";
+          est_save << state_enu_.gyro_bias(i, 0) << " ";
 
         if (use_dr_structure)
           for (int i = 0; i < 3; ++i)
-            est_save << state_.radar_scale(i, 0) << " ";
+            est_save << state_enu_.radar_scale(i, 0) << " ";
 
         for (int i = 0; i < 3; ++i)
           est_save << v_r_est(i, 0) << " ";

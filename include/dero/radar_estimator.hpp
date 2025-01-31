@@ -72,6 +72,31 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(incsl::StdPointRadar,
                                   (float, power, power)
                                   (float, noise, noise)
                                   (float, detection_confidence, detection_confidence))
+
+POINT_CLOUD_REGISTER_POINT_STRUCT(incsl::StdPointRadarOffHW,
+                                  (float, x, x)
+                                  (float, y, y)
+                                  (float, z, z)
+                                  (float, radial_distance, radial_distance)
+                                  (float, radial_velocity, radial_velocity)
+                                  (float, azimuth_angle, azimuth_angle)
+                                  (float, elevation_angle, elevation_angle)
+                                  (float, radar_cross_section, radar_cross_section)
+                                  (float, signal_noise_ratio, signal_noise_ratio)
+                                  (float, radial_distance_variance, radial_distance_variance)
+                                  (float, radial_velocity_variance, radial_velocity_variance)
+                                  (float, azimuth_angle_variance, azimuth_angle_variance)
+                                  (float, elevation_angle_variance, elevation_angle_variance)
+                                  (float, radial_distance_velocity_covariance,
+                                    radial_distance_velocity_covariance)
+                                  (float, velocity_resolution_processing_probability,
+                                    velocity_resolution_processing_probability)
+                                  (float, azimuth_angle_probability, azimuth_angle_probability)
+                                  (float, elevation_angle_probability, elevation_angle_probability)
+                                  (float, measurement_status, measurement_status)
+                                  (float, idx_azimuth_ambiguity_peer, idx_azimuth_ambiguity_peer))
+
+
 // clang-format on
 
 namespace incsl {

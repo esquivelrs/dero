@@ -27,41 +27,41 @@ from launch.substitutions import LaunchConfiguration
 from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
-    est_save_dir_arg = DeclareLaunchArgument('est_save_dir',default_value = '/home/ros/rosbags_shared/carried/carried.txt',description = '')
-    bag_dir_arg      = DeclareLaunchArgument('bag_dir',     default_value = '/home/ros/rosbags_shared/carried/carried.db3',description = '');
-
+    est_save_dir_arg = DeclareLaunchArgument('est_save_dir',default_value = '/home/ros/ws/results_ws/trajectory/seq11/AR1_11_DERO3.txt',description = '')
+    bag_dir_arg      = DeclareLaunchArgument('bag_dir',     default_value = '/home/ros/rosbags_shared/agrirobot_agrirobot_reproducible_setup_bosch_bottom_2024-11-18-17-13-31_0.mcap',description = '');
+    storage_id_arg   = DeclareLaunchArgument('storage_id',  default_value = 'mcap',description = '')
     # ROS parameter
-    imu_topic_arg                     = DeclareLaunchArgument('imu_topic',        default_value = '/sensor_platform/imu',description = '')
-    radar_topic_arg                   = DeclareLaunchArgument('radar_topic',      default_value = '/sensor_platform/radar/scan',description = '')
+    imu_topic_arg                     = DeclareLaunchArgument('imu_topic',        default_value = '/tractor/lidar/front/imu/sync',description = '')
+    radar_topic_arg                   = DeclareLaunchArgument('radar_topic',      default_value = '/tractor/radar/bosch/bottom/points/sync',description = '')
     groundtruth_topic_arg             = DeclareLaunchArgument('groundtruth_topic',default_value = '/ground_truth/pose',description = '')
 
     imu_body_rotation_offset_x_arg    = DeclareLaunchArgument('imu_body_rotation_offset_x',default_value = '0.0',description = 'degree')
     imu_body_rotation_offset_y_arg    = DeclareLaunchArgument('imu_body_rotation_offset_y',default_value = '0.0',description = 'degree')
     imu_body_rotation_offset_z_arg    = DeclareLaunchArgument('imu_body_rotation_offset_z',default_value = '0.0',description = 'degree')
 
-    imu_radar_position_offset_x_arg   = DeclareLaunchArgument('imu_radar_position_offset_x',default_value = '0.05',description = '')
-    imu_radar_position_offset_y_arg   = DeclareLaunchArgument('imu_radar_position_offset_y',default_value = '0.08',description = '')
-    imu_radar_position_offset_z_arg   = DeclareLaunchArgument('imu_radar_position_offset_z',default_value = '0.07',description = '')
+    imu_radar_position_offset_x_arg   = DeclareLaunchArgument('imu_radar_position_offset_x',default_value = '0.028',description = '')
+    imu_radar_position_offset_y_arg   = DeclareLaunchArgument('imu_radar_position_offset_y',default_value = '0.023',description = '')
+    imu_radar_position_offset_z_arg   = DeclareLaunchArgument('imu_radar_position_offset_z',default_value = '0.286',description = '')
 
-    imu_radar_quaternion_offset_w_arg = DeclareLaunchArgument('imu_radar_quaternion_offset_w',default_value = '0.93354', description = '')
-    imu_radar_quaternion_offset_x_arg = DeclareLaunchArgument('imu_radar_quaternion_offset_x',default_value = '-0.00502',description = '')
-    imu_radar_quaternion_offset_y_arg = DeclareLaunchArgument('imu_radar_quaternion_offset_y',default_value = '0.01127', description = '')
-    imu_radar_quaternion_offset_z_arg = DeclareLaunchArgument('imu_radar_quaternion_offset_z',default_value = '-0.35827',description = '')
+    imu_radar_quaternion_offset_w_arg = DeclareLaunchArgument('imu_radar_quaternion_offset_w',default_value = '0.001', description = '')
+    imu_radar_quaternion_offset_x_arg = DeclareLaunchArgument('imu_radar_quaternion_offset_x',default_value = '-0.025',description = '')
+    imu_radar_quaternion_offset_y_arg = DeclareLaunchArgument('imu_radar_quaternion_offset_y',default_value = '-0.002', description = '')
+    imu_radar_quaternion_offset_z_arg = DeclareLaunchArgument('imu_radar_quaternion_offset_z',default_value = '1.000',description = '')
     gravity_arg                       = DeclareLaunchArgument('gravity',                      default_value = '9.81',    description = '')
 
     # EKF parameter
     P_init_position_arg               = DeclareLaunchArgument('P_init_position',   default_value = '1.0e-10',  description = 'standard deviation')
-    P_init_velocity_arg               = DeclareLaunchArgument('P_init_velocity',   default_value = '1.0e-10',  description = 'standard deviation')
-    P_init_attitude_XY_arg            = DeclareLaunchArgument('P_init_attitude_XY',default_value = '1.0e-10',  description = 'standard deviation')
-    P_init_attitude_Z_arg             = DeclareLaunchArgument('P_init_attitude_Z', default_value = '1.0e-10',  description = 'standard deviation')
-    P_init_accel_bias_arg             = DeclareLaunchArgument('P_init_accel_bias', default_value = '0.02',     description = 'standard deviation')
-    P_init_gyro_bias_arg              = DeclareLaunchArgument('P_init_gyro_bias',  default_value = '5.2360e-8',description = 'standard deviation')
+    P_init_velocity_arg               = DeclareLaunchArgument('P_init_velocity',   default_value = '1.0e-1',  description = 'standard deviation')
+    P_init_attitude_XY_arg            = DeclareLaunchArgument('P_init_attitude_XY',default_value = '1.0e-2',  description = 'standard deviation')
+    P_init_attitude_Z_arg             = DeclareLaunchArgument('P_init_attitude_Z', default_value = '1.0e-2',  description = 'standard deviation')
+    P_init_accel_bias_arg             = DeclareLaunchArgument('P_init_accel_bias', default_value = '3.7201e-07',     description = 'standard deviation')
+    P_init_gyro_bias_arg              = DeclareLaunchArgument('P_init_gyro_bias',  default_value = '1.2097e-10',description = 'standard deviation')
     P_init_radar_scale_arg            = DeclareLaunchArgument('P_init_radar_scale',default_value = '1.0e-6',   description = 'standard deviation')
 
-    velocity_random_walk_arg          = DeclareLaunchArgument('velocity_random_walk',   default_value = '0.03',     description = 'standard deviation')
-    angular_random_walk_arg           = DeclareLaunchArgument('angular_random_walk',    default_value = '5.4547e-4',description = 'standard deviation')
-    accel_bias_random_walk_arg        = DeclareLaunchArgument('accel_bias_random_walk', default_value = '0.00001',  description = 'standard deviation')
-    gyro_bias_random_walk_arg         = DeclareLaunchArgument('gyro_bias_random_walk',  default_value = '6.3985e-5',description = 'standard deviation')
+    velocity_random_walk_arg          = DeclareLaunchArgument('velocity_random_walk',   default_value = '0.0014492691797967651',     description = 'standard deviation')
+    angular_random_walk_arg           = DeclareLaunchArgument('angular_random_walk',    default_value = '3.473e-4',description = 'standard deviation')
+    accel_bias_random_walk_arg        = DeclareLaunchArgument('accel_bias_random_walk', default_value = '1.0167e-4',  description = 'standard deviation')
+    gyro_bias_random_walk_arg         = DeclareLaunchArgument('gyro_bias_random_walk',  default_value = '1.8326e-6',description = 'standard deviation')
     radar_scale_random_walk_arg       = DeclareLaunchArgument('radar_scale_random_walk',default_value = '1.0e-6',   description = 'standard deviation')
 
     # Simulation scenario
@@ -72,14 +72,14 @@ def generate_launch_description():
     groundtruth_included_arg          = DeclareLaunchArgument('groundtruth_included',        default_value = 'false',description = '')
     radar_outlier_reject_arg          = DeclareLaunchArgument('radar_outlier_reject',        default_value = 'true', description = '')
     ros2_pub_rate_arg                 = DeclareLaunchArgument('ros2_pub_rate',               default_value = '30',   description = 'Hz')
-    coarse_alignment_window_size_arg  = DeclareLaunchArgument('coarse_alignment_window_size',default_value = '5000', description = 'IMU step')
+    coarse_alignment_window_size_arg  = DeclareLaunchArgument('coarse_alignment_window_size',default_value = '70', description = 'IMU step')
 
     # Radar parameter
-    min_distance_arg                  = DeclareLaunchArgument('min_distance',              default_value = '0.25',  description = '')
-    max_distance_arg                  = DeclareLaunchArgument('max_distance',              default_value = '100.0', description = '')
-    min_db_arg                        = DeclareLaunchArgument('min_db',                    default_value = '3.0',   description = '')
-    elevation_threshold_arg           = DeclareLaunchArgument('elevation_threshold',       default_value = '60.0',  description = '')
-    azimuth_threshold_arg             = DeclareLaunchArgument('azimuth_threshold',         default_value = '60.0',  description = '')
+    min_distance_arg                  = DeclareLaunchArgument('min_distance',              default_value = '0.2',  description = '')
+    max_distance_arg                  = DeclareLaunchArgument('max_distance',              default_value = '300.0', description = '')
+    min_db_arg                        = DeclareLaunchArgument('min_db',                    default_value = '19.0',   description = '')
+    elevation_threshold_arg           = DeclareLaunchArgument('elevation_threshold',       default_value = '120.0',  description = '')
+    azimuth_threshold_arg             = DeclareLaunchArgument('azimuth_threshold',         default_value = '120.0',  description = '')
     velocity_correction_factor_arg    = DeclareLaunchArgument('velocity_correction_factor',default_value = '1.0',   description = '')
     filter_min_z_arg                  = DeclareLaunchArgument('filter_min_z',              default_value = '-100.0',description = '')
     filter_max_z_arg                  = DeclareLaunchArgument('filter_max_z',              default_value = '100.0', description = '')
@@ -91,7 +91,7 @@ def generate_launch_description():
    
     max_sigma_x_arg                   = DeclareLaunchArgument('max_sigma_x',default_value = '0.2',  description = '')
     max_sigma_y_arg                   = DeclareLaunchArgument('max_sigma_y',default_value = '0.15', description = '')
-    max_sigma_z_arg                   = DeclareLaunchArgument('max_sigma_z',default_value = '0.2',  description = '')
+    max_sigma_z_arg                   = DeclareLaunchArgument('max_sigma_z',default_value = '0.001',  description = '')
     max_r_cond_arg                    = DeclareLaunchArgument('max_r_cond', default_value = '1.0e3',description = '')
     
     use_ransac_arg                    = DeclareLaunchArgument('use_ransac',      default_value = 'true', description = '')
@@ -113,11 +113,11 @@ def generate_launch_description():
     odr_inlier_threshold_arg          = DeclareLaunchArgument('odr_inlier_threshold',  default_value = '10',   description = '')
     
     # ICP
-    max_corres_dis_arg                = DeclareLaunchArgument('max_corres_dis',             default_value = '0.5',       description = '')
-    max_iter_arg                      = DeclareLaunchArgument('max_iter',                   default_value = '500',       description = '')
-    transform_eps_arg                 = DeclareLaunchArgument('transform_eps',              default_value = '0.00000001',description = '')
-    euclidean_fit_eps_arg             = DeclareLaunchArgument('euclidean_fit_eps',          default_value = '0.00000001',description = '')
-    cloning_window_size_arg           = DeclareLaunchArgument('cloning_window_size',        default_value = '3',         description = '')
+    max_corres_dis_arg                = DeclareLaunchArgument('max_corres_dis',             default_value = '0.2',       description = '')
+    max_iter_arg                      = DeclareLaunchArgument('max_iter',                   default_value = '100',       description = '')
+    transform_eps_arg                 = DeclareLaunchArgument('transform_eps',              default_value = '0.0001',description = '')
+    euclidean_fit_eps_arg             = DeclareLaunchArgument('euclidean_fit_eps',          default_value = '0.0001',description = '')
+    cloning_window_size_arg           = DeclareLaunchArgument('cloning_window_size',        default_value = '10',         description = '')
     window_slicing_arg                = DeclareLaunchArgument('window_slicing',             default_value = 'false',     description = '')
     ransac_outlier_reject_thres_arg   = DeclareLaunchArgument('ransac_outlier_reject_thres',default_value = '0.01',      description = '')  
     icp_std_x_arg                     = DeclareLaunchArgument('icp_std_x',                  default_value = '0.5',       description = 'variance')  
@@ -205,15 +205,16 @@ def generate_launch_description():
             'euclidean_fit_eps':             launch.substitutions.LaunchConfiguration('euclidean_fit_eps'),
             'window_slicing':                launch.substitutions.LaunchConfiguration('window_slicing'),
             'bag_dir':                       launch.substitutions.LaunchConfiguration('bag_dir'),
+            'storage_id':                    launch.substitutions.LaunchConfiguration('storage_id'),
             'icp_std_x':                     launch.substitutions.LaunchConfiguration('icp_std_x'),
             'icp_std_y':                     launch.substitutions.LaunchConfiguration('icp_std_y'),
             'icp_std_z':                     launch.substitutions.LaunchConfiguration('icp_std_z'),
             'accel_angle_adapt':             launch.substitutions.LaunchConfiguration('accel_angle_adapt'),
         }])
 
-
     return LaunchDescription([
         bag_dir_arg,
+        storage_id_arg,
         imu_topic_arg,
         radar_topic_arg,
         groundtruth_topic_arg,
