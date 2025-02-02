@@ -248,6 +248,11 @@ sensor_msgs::msg::PointCloud2 RadarEstimator::getInlierRadarRos2PCL2() {
   return inlier_radar_msg;
 } // getInlierRadarRos2PCL2
 
+sensor_msgs::msg::PointCloud2 RadarEstimator::getMatchedCorrespondencesMsg() {
+  return icp_radar_corresp_msg;
+}
+
+
 Vec3d RadarEstimator::getEgoVelocity() { return ego_velocity_; } // getEgoVelocity
 
 void RadarEstimator::setEgoVelocity(Vec3d v_r) { ego_velocity_ = v_r; } // setEgoVelocity
@@ -495,6 +500,30 @@ ICPTransform RadarEstimator::solveICP(const pcl::PointCloud<incsl::RadarPointClo
   corresp_est.setInputTarget(curr_);
   corresp_est.determineCorrespondences(*corresps, radar_position_estimator_param.max_corres_dis);
 
+  /// RE: This can be optimize by merging the for with the next for
+  pcl::PointCloud<incsl::RadarPointCloudType> matched_points;
+  matched_points.reserve(corresps->size());
+
+  for (const auto &corr : *corresps) {
+      int idx_target = corr.index_match;
+      // Ensure the index is within bounds
+      if (idx_target >= 0 && idx_target < static_cast<int>(curr_pcl_msg.size())) {
+          matched_points.points.emplace_back(curr_pcl_msg.points[idx_target]);
+      }
+  }
+
+  matched_points.width = matched_points.points.size();
+  matched_points.height = 1;
+  matched_points.is_dense = true;
+  pcl::PCLPointCloud2 pcl_matched_pc2;
+  pcl::toPCLPointCloud2(matched_points, pcl_matched_pc2);
+  sensor_msgs::msg::PointCloud2 matched_msg;
+  // matched_msg.header = curr_pcl_msg->header;
+  pcl_conversions::fromPCL(pcl_matched_pc2, matched_msg);
+  this->icp_radar_corresp_msg = matched_msg;
+
+
+  ///
   double sum_x        = 0.0;
   double sum_y        = 0.0;
   double sum_z        = 0.0;

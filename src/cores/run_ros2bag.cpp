@@ -128,8 +128,11 @@ RunRos2Bag::RunRos2Bag(std::string node_name) : rclcpp::Node(node_name) {
   radar_raw_publisher_    = this->create_publisher<sensor_msgs::msg::PointCloud2>("incsl/radar_raw_scan", 10);
   pose_path_publisher_    = this->create_publisher<nav_msgs::msg::Path>("incsl/pose_path", 10);
   pose_path_gt_publisher_ = this->create_publisher<nav_msgs::msg::Path>("incsl/gt_path", 10);
+  radar_map_publisher_   = this->create_publisher<sensor_msgs::msg::PointCloud2>("incsl/radar_map", 10);
+  odom_publisher_        = this->create_publisher<nav_msgs::msg::Odometry>("incsl/odom", 10);
 
-  est_save.open(est_save_dir_);
+  map_cloud_ = std::make_shared<pcl::PointCloud<RadarPointCloudType>>();
+  est_save.open(est_save_dir_ + ".txt");
 } // RunRos2Bag
 
 void RunRos2Bag::LoadParameters() {
@@ -543,10 +546,10 @@ void RunRos2Bag::MsgPublish() {
       pose_gt_.pose.orientation.z = gt_msg.pose.orientation.z;
 
       pose_gt_.header.stamp    = stamp_now_;
-      pose_gt_.header.frame_id = "world";
+      pose_gt_.header.frame_id = "map";
 
       pose_path_gt_.header.stamp    = stamp_now_;
-      pose_path_gt_.header.frame_id = "world";
+      pose_path_gt_.header.frame_id = "map";
       pose_path_gt_.poses.push_back(pose_gt_);
 
       pose_path_gt_publisher_->publish(pose_path_gt_);
@@ -557,13 +560,14 @@ void RunRos2Bag::MsgPublish() {
     else
       state_ = scekf_dero_.getState();
 
+
     
     // state_enu_ = transformStateNedToEnu(state_);
 
     geometry_msgs::msg::TransformStamped pose_transform_;
     pose_transform_.header.stamp    = stamp_now_;
-    pose_transform_.header.frame_id = "world";
-    pose_transform_.child_frame_id  = "incsl_robot";
+    pose_transform_.header.frame_id = "map";
+    pose_transform_.child_frame_id  = "imu_frame";
 
     pose_transform_.transform.translation.x = state_.position(0, 0);
     pose_transform_.transform.translation.y = state_.position(1, 0);
@@ -578,8 +582,8 @@ void RunRos2Bag::MsgPublish() {
 
     geometry_msgs::msg::TransformStamped radar_transform_;
     radar_transform_.header.stamp    = stamp_now_;
-    radar_transform_.header.frame_id = "incsl_robot";
-    radar_transform_.child_frame_id  = "incsl_radar";
+    radar_transform_.header.frame_id = "imu_frame";
+    radar_transform_.child_frame_id  = "radar_frame";
 
     radar_transform_.transform.translation.x = imu_radar_calibration_.position(0, 0);
     radar_transform_.transform.translation.y = imu_radar_calibration_.position(1, 0);
@@ -592,7 +596,7 @@ void RunRos2Bag::MsgPublish() {
 
     tf_broadcaster_radar_->sendTransform(radar_transform_);
 
-    radar_data_pub_.header.frame_id = "incsl_radar";
+    radar_data_pub_.header.frame_id = "radar_frame";
     radar_data_pub_.header.stamp    = stamp_now_;
     radar_raw_publisher_->publish(radar_data_pub_);
 
@@ -600,10 +604,10 @@ void RunRos2Bag::MsgPublish() {
 
     if (radar_filtered_pcl2_.header.frame_id.empty()) {
       RCLCPP_WARN_ONCE(this->get_logger(),
-                       "Radar PointCloud2 has empty frame_id, setting default frame_id: incsl_radar!");
+                       "Radar PointCloud2 has empty frame_id, setting default frame_id: radar_frame!");
     }
 
-    radar_filtered_pcl2_.header.frame_id = "incsl_radar";
+    radar_filtered_pcl2_.header.frame_id = "radar_frame";
     radar_filtered_pcl2_.header.stamp    = stamp_now_;
     radar_publisher_->publish(radar_filtered_pcl2_);
 
@@ -619,13 +623,44 @@ void RunRos2Bag::MsgPublish() {
     pose_.pose.orientation.z = state_.quaternion(3, 0);
 
     pose_.header.stamp    = stamp_now_;
-    pose_.header.frame_id = "world";
+    pose_.header.frame_id = "map";
 
     pose_path_.header.stamp    = stamp_now_;
-    pose_path_.header.frame_id = "world";
+    pose_path_.header.frame_id = "map";
     pose_path_.poses.push_back(pose_);
 
     pose_path_publisher_->publish(pose_path_);
+
+    if (use_radar) {
+      // BuildRadarMap();
+      sensor_msgs::msg::PointCloud2 map_cloud_msg;
+      pcl::toROSMsg(*map_cloud_, map_cloud_msg);
+      map_cloud_msg.header.frame_id = "map";
+      map_cloud_msg.header.stamp    = stamp_now_;
+      radar_map_publisher_->publish(map_cloud_msg);
+    }
+
+    // state_enu_ = transformStateNedToEnu(state_);
+
+    Eigen::Quaterniond quat(state_.quaternion(0, 0), state_.quaternion(1, 0), state_.quaternion(2, 0), state_.quaternion(3, 0));
+    Eigen::Vector3d translation(1.019, 0.012, -1.383);
+    Eigen::Vector3d rotated_translation = quat * translation;
+
+    nav_msgs::msg::Odometry odom_msg;
+    odom_msg.header.stamp = stamp_now_;
+    odom_msg.header.frame_id = "map";
+    odom_msg.child_frame_id = "base_link";
+    odom_msg.pose.pose.position.x = state_.position(0, 0) + rotated_translation.x();
+    odom_msg.pose.pose.position.y = state_.position(1, 0) + rotated_translation.y();
+    odom_msg.pose.pose.position.z = state_.position(2, 0) + rotated_translation.z();
+    odom_msg.pose.pose.orientation.w = state_.quaternion(0, 0);
+    odom_msg.pose.pose.orientation.x = state_.quaternion(1, 0);
+    odom_msg.pose.pose.orientation.y = state_.quaternion(2, 0);
+    odom_msg.pose.pose.orientation.z = state_.quaternion(3, 0);
+
+    // publish the message
+    odom_publisher_->publish(odom_msg);   
+
   } // if
 } // void MsgPublish
 
@@ -641,6 +676,24 @@ void RunRos2Bag::ShutdownHandler() {
     state_ = ekf_rio_.getState();
   } else {
     state_ = scekf_dero_.getState();
+  }
+
+  // save the map in a pcd file
+  if (use_radar) {
+      try {
+          // Ensure cloud is unorganized (width = total points, height = 1)
+          map_cloud_->width = map_cloud_->points.size();
+          map_cloud_->height = 1;
+          map_cloud_->is_dense = false;
+
+          if (pcl::io::savePCDFileASCII(est_save_dir_ + ".pcd", *map_cloud_) == -1) {
+              RCLCPP_ERROR(this->get_logger(), "Failed to save PCD file");
+          } else {
+              RCLCPP_INFO_ONCE(this->get_logger(), "Map saved in %s.pcd", est_save_dir_.c_str());
+          }
+      } catch (const pcl::IOException& e) {
+          RCLCPP_ERROR(this->get_logger(), "Error saving PCD: %s", e.what());
+      }
   }
 
   // clang-format off
@@ -660,9 +713,10 @@ void RunRos2Bag::ShutdownHandler() {
                                                                                             state_.radar_scale(2, 0));
   // clang-format on
 
+
+
   rclcpp::shutdown();
 } // void ShutdownHandler
-
 
 Eigen::Vector3d RunRos2Bag::nedToEnu(const Eigen::Vector3d& ned) {
     Eigen::Matrix3d nedToEnuMatrix;
@@ -672,17 +726,94 @@ Eigen::Vector3d RunRos2Bag::nedToEnu(const Eigen::Vector3d& ned) {
     return nedToEnuMatrix * ned;
 }
 
+Vec4d RunRos2Bag::transformQuaternionNedToEnu(const Vec4d& quat_ned) {
+    // Input quaternion is in [w,x,y,z] order
+    double w = quat_ned(0);
+    double x = quat_ned(1); 
+    double y = quat_ned(2);
+    double z = quat_ned(3);
+
+    // Convert NED to ENU
+    Vec4d quat_enu;
+    quat_enu(0) = w;  // w
+    quat_enu(1) = y;  // x in ENU = y in NED 
+    quat_enu(2) = x;  // y in ENU = x in NED
+    quat_enu(3) = -z; // z in ENU = -z in NED
+    
+    return quat_enu;
+}
+
+
 State RunRos2Bag::transformStateNedToEnu(const State& state_ned) {
+
+    // position transform to base_link
+    // - Translation: [1.019, 0.012, -1.383] (m)
+    //before transforming to ENU, we need to transformt to base_link rotate the translation vector by the orientation quaternion
+    Eigen::Quaterniond quat(state_ned.quaternion(0, 0), state_ned.quaternion(1, 0), state_ned.quaternion(2, 0), state_ned.quaternion(3, 0));
+    Eigen::Vector3d translation(1.019, 0.012, -1.383);
+    Eigen::Vector3d rotated_translation = quat * translation;
+    // Transform the position
+    Eigen::Vector3d position = state_ned.position + rotated_translation;    
+
     State state_enu;
-    state_enu.position = nedToEnu(state_ned.position);
+    state_enu.position = nedToEnu(position);
     state_enu.velocity = nedToEnu(state_ned.velocity);
-    state_enu.quaternion = state_ned.quaternion; // Quaternion transformation is more complex and depends on the specific use case
+    state_enu.quaternion = transformQuaternionNedToEnu(state_ned.quaternion);
     state_enu.accel_bias = nedToEnu(state_ned.accel_bias);
     state_enu.gyro_bias = nedToEnu(state_ned.gyro_bias);
     state_enu.radar_scale = nedToEnu(state_ned.radar_scale);
     return state_enu;
 }
 
+void RunRos2Bag::BuildRadarMap(){
+  sensor_msgs::msg::PointCloud2 matched_corr = radar_estimator_.getMatchedCorrespondencesMsg();
+
+  if(matched_corr.data.empty()){
+    RCLCPP_WARN(this->get_logger(), "No matched correspondences found!");
+    return;
+  }
+  
+  if (!use_dr_structure)
+    state_ = ekf_rio_.getState();
+  else
+    state_ = scekf_dero_.getState();             
+  // add the matched correspondences to the map for visualization
+
+  Eigen::Vector3d position = state_.position;
+  Eigen::Quaterniond orientation(state_.quaternion(0, 0),  // w
+                                  state_.quaternion(1, 0),  // x
+                                  state_.quaternion(2, 0),  // y
+                                  state_.quaternion(3, 0)); // z
+  
+  // i need this rotated 180 degrees around the z axis
+  Eigen::AngleAxisd rotation(M_PI, Eigen::Vector3d::UnitZ());
+  orientation = orientation * rotation;
+
+
+  // Create transformation matrix
+  Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
+  transform.block<3,3>(0,0) = orientation.toRotationMatrix().cast<float>();
+  transform.block<3,1>(0,3) = position.cast<float>();
+  
+  // TODO: Change this to RadarPointCloudType
+  pcl::PointCloud<RadarPointCloudType>::Ptr pcl_corr(new pcl::PointCloud<RadarPointCloudType>);
+  pcl::fromROSMsg(matched_corr, *pcl_corr);
+  
+  // Transform the point cloud using the state-derived transform
+  pcl::PointCloud<RadarPointCloudType>::Ptr transformed_corr(new pcl::PointCloud<RadarPointCloudType>);
+  pcl::transformPointCloud(*pcl_corr, *transformed_corr, transform);
+  
+  // Accumulate transformed points into the map
+  if(map_cloud_ && transformed_corr){
+    map_cloud_->points.insert(map_cloud_->points.end(), transformed_corr->points.begin(), transformed_corr->points.end());
+    map_cloud_->header = transformed_corr->header;
+  } else {
+    RCLCPP_ERROR(this->get_logger(), "map_cloud_ or transformed_corr is null!");
+  }
+
+
+
+}
 
 void RunRos2Bag::Run() {
   storage_options.uri                           = bag_dir;
@@ -703,6 +834,9 @@ void RunRos2Bag::Run() {
   while (reader.has_next()) {
     auto                      bag_message = reader.read_next();
     rclcpp::SerializedMessage extracted_serialized_msg(*bag_message->serialized_data);
+
+    
+
 
     if (bag_message->topic_name == imu_topic_name_) {
       serialization_imu.deserialize_message(&extracted_serialized_msg, &extracted_imu_msg);
@@ -892,6 +1026,8 @@ void RunRos2Bag::Run() {
 
     if (!queue_radar_buff.empty() && !imu_only && use_radar) {
       radar_buff.emplace_back(queue_radar_buff.front());
+      // time point start
+      auto start = std::chrono::high_resolution_clock::now();
 
       if (!ekf_rio_init_) {
         radar_skip += 1;
@@ -997,6 +1133,7 @@ void RunRos2Bag::Run() {
               ICPTransform icp_meas = radar_estimator_.solveICP(first_window_radar_scan_inlier, end_radar_scan_inlier,
                                                                 radar_pos_est_param_, icp_init_pose);
 
+              
               ca_state_ = scekf_dero_.getCoarseAlignmentState();
               state_    = scekf_dero_.getState();
 
@@ -1062,6 +1199,8 @@ void RunRos2Bag::Run() {
                 if (scekf_dero_.RadarMeasurementUpdate(imu_radar_calibration_, icp_meas, radar_outlier_reject,
                                                        first_window, r_accel, H_accel)) {
                   measurement_update_radar_trigger = true;
+                  BuildRadarMap();
+
                 } else {
                   RCLCPP_WARN(this->get_logger(),
                               "EKF: Measurement update step is rejected because ICP failed Chi-squared test!");
@@ -1080,12 +1219,18 @@ void RunRos2Bag::Run() {
       } // ekf_rio_init_
 
       queue_radar_buff.pop();
+      // time point end
+      auto end = std::chrono::high_resolution_clock::now();
+      auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+      RCLCPP_DEBUG(this->get_logger(), "Radar processing time: %d microseconds", duration.count());
     } else
       RCLCPP_WARN_ONCE(this->get_logger(), "Waiting for radar msg!"); // if !queue_radar_buff.empty()
 
     if ((time_update_trigger == true) || (save_init_ == true) || (measurement_update_radar_trigger == true) ||
         (measurement_update_accel_trigger == true)) {
-
+      
+      // start time point
+      auto start = std::chrono::high_resolution_clock::now();
       if (!use_dr_structure) {
         covariance_matrix_ = ekf_rio_.getCovarianceMatrix();
         error_state_       = ekf_rio_.getErrorState();
@@ -1129,7 +1274,10 @@ void RunRos2Bag::Run() {
         error_state_.radar_scale  *= 0;
       }
 
+     
+
       for (int i = 0; i < 3; ++i)
+        
         est_save << state_enu_.position(i, 0) << " ";
 
       const bool rpg_save = true;
@@ -1197,11 +1345,17 @@ void RunRos2Bag::Run() {
         est_save << std::endl;
       }
 
+      // end time point
+      auto end = std::chrono::high_resolution_clock::now();
+      auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+      RCLCPP_DEBUG(this->get_logger(), "Save processing time: %d microseconds", duration.count());
+
       time_update_trigger              = false;
       save_init_                       = false;
       measurement_update_radar_trigger = false;
       measurement_update_accel_trigger = false;
     } // if save
+  
   }
   RunRos2Bag::ShutdownHandler();
 } // void Run

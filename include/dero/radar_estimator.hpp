@@ -123,6 +123,7 @@ class RadarEstimator {
     sensor_msgs::msg::PointCloud2 getInlierRadarRos2PCL2();
     std::vector<Vec3d>            getInlierRadarPcl();
     std::vector<Vec3d>            pcl_vec_;
+    sensor_msgs::msg::PointCloud2 getMatchedCorrespondencesMsg();
 
   private:
     bool first_scan   = true;
@@ -151,6 +152,7 @@ class RadarEstimator {
 
     sensor_msgs::msg::PointCloud2 inlier_radar_msg;
     sensor_msgs::msg::PointCloud2 inlier_radar_msg_;
+    sensor_msgs::msg::PointCloud2 icp_radar_corresp_msg;
 
     std::string radar_info_;
 

@@ -27,8 +27,34 @@ from launch.substitutions import LaunchConfiguration
 from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
-    est_save_dir_arg = DeclareLaunchArgument('est_save_dir',default_value = '/home/ros/ws/results_ws/trajectory/seq11/AR1_11_DERO3.txt',description = '')
+    
+    # # sequence 03
+    # est_save_dir_arg = DeclareLaunchArgument('est_save_dir',default_value = '/home/ros/ws/results_ws/trajectory/seq03/AR1_03_DeRO',description = '')
+    # bag_dir_arg      = DeclareLaunchArgument('bag_dir',     default_value = '/home/ros/rosbags_shared/agrirobot_agrirobot_reproducible_setup_bosch_bottom_2024-09-20-11-58-18_0.mcap',description = '');
+    
+    # # sequence 04
+    # est_save_dir_arg = DeclareLaunchArgument('est_save_dir',default_value = '/home/ros/ws/results_ws/trajectory/seq04/AR1_04_DeRO',description = '')
+    # bag_dir_arg      = DeclareLaunchArgument('bag_dir',     default_value = '/home/ros/rosbags_shared/agrirobot_agrirobot_reproducible_setup_bosch_bottom_2024-09-20-11-45-51_0.mcap',description = '');
+    
+    # sequence 09
+    # est_save_dir_arg = DeclareLaunchArgument('est_save_dir',default_value = '/home/ros/ws/results_ws/trajectory/seq09/AR1_09_DeRO',description = '')
+    # bag_dir_arg      = DeclareLaunchArgument('bag_dir',     default_value = '/home/ros/rosbags_shared/agrirobot_agrirobot_reproducible_setup_bosch_bottom_2024-11-18-15-16-33_0.mcap',description = '');
+        
+    # # sequence 10
+    # est_save_dir_arg = DeclareLaunchArgument('est_save_dir',default_value = '/home/ros/ws/results_ws/trajectory/seq10/AR1_10_DeRO',description = '')
+    # bag_dir_arg      = DeclareLaunchArgument('bag_dir',     default_value = '/home/ros/rosbags_shared/agrirobot_agrirobot_reproducible_setup_bosch_bottom_2024-09-20-12-56-26_0.mcap',description = '');
+    
+
+    # sequence 11
+    est_save_dir_arg = DeclareLaunchArgument('est_save_dir',default_value = '/home/ros/ws/results_ws/trajectory/seq11/AR1_11_DeRO4',description = '')
     bag_dir_arg      = DeclareLaunchArgument('bag_dir',     default_value = '/home/ros/rosbags_shared/agrirobot_agrirobot_reproducible_setup_bosch_bottom_2024-11-18-17-13-31_0.mcap',description = '');
+    
+    # # sequence 12
+    # est_save_dir_arg = DeclareLaunchArgument('est_save_dir',default_value = '/home/ros/ws/results_ws/trajectory/seq12/AR1_12_DeRO',description = '')
+    # bag_dir_arg      = DeclareLaunchArgument('bag_dir',     default_value = '/home/ros/rosbags_shared/agrirobot_agrirobot_reproducible_setup_bosch_bottom_2024-11-18-14-45-46_0.mcap',description = '');
+        
+
+    
     storage_id_arg   = DeclareLaunchArgument('storage_id',  default_value = 'mcap',description = '')
     # ROS parameter
     imu_topic_arg                     = DeclareLaunchArgument('imu_topic',        default_value = '/tractor/lidar/front/imu/sync',description = '')
@@ -44,7 +70,7 @@ def generate_launch_description():
     imu_radar_position_offset_z_arg   = DeclareLaunchArgument('imu_radar_position_offset_z',default_value = '0.286',description = '')
 
     imu_radar_quaternion_offset_w_arg = DeclareLaunchArgument('imu_radar_quaternion_offset_w',default_value = '0.001', description = '')
-    imu_radar_quaternion_offset_x_arg = DeclareLaunchArgument('imu_radar_quaternion_offset_x',default_value = '-0.025',description = '')
+    imu_radar_quaternion_offset_x_arg = DeclareLaunchArgument('imu_radar_quaternion_offset_x',default_value = '-0.001',description = '')
     imu_radar_quaternion_offset_y_arg = DeclareLaunchArgument('imu_radar_quaternion_offset_y',default_value = '-0.002', description = '')
     imu_radar_quaternion_offset_z_arg = DeclareLaunchArgument('imu_radar_quaternion_offset_z',default_value = '1.000',description = '')
     gravity_arg                       = DeclareLaunchArgument('gravity',                      default_value = '9.81',    description = '')
@@ -58,10 +84,10 @@ def generate_launch_description():
     P_init_gyro_bias_arg              = DeclareLaunchArgument('P_init_gyro_bias',  default_value = '1.2097e-10',description = 'standard deviation')
     P_init_radar_scale_arg            = DeclareLaunchArgument('P_init_radar_scale',default_value = '1.0e-6',   description = 'standard deviation')
 
-    velocity_random_walk_arg          = DeclareLaunchArgument('velocity_random_walk',   default_value = '0.0014492691797967651',     description = 'standard deviation')
-    angular_random_walk_arg           = DeclareLaunchArgument('angular_random_walk',    default_value = '3.473e-4',description = 'standard deviation')
-    accel_bias_random_walk_arg        = DeclareLaunchArgument('accel_bias_random_walk', default_value = '1.0167e-4',  description = 'standard deviation')
-    gyro_bias_random_walk_arg         = DeclareLaunchArgument('gyro_bias_random_walk',  default_value = '1.8326e-6',description = 'standard deviation')
+    velocity_random_walk_arg          = DeclareLaunchArgument('velocity_random_walk',   default_value = '0.001675328706658926',     description = 'standard deviation')
+    angular_random_walk_arg           = DeclareLaunchArgument('angular_random_walk',    default_value = '2.568924138685048e-05',description = 'standard deviation')
+    accel_bias_random_walk_arg        = DeclareLaunchArgument('accel_bias_random_walk', default_value = '3.662153510206057e-05',  description = 'standard deviation')
+    gyro_bias_random_walk_arg         = DeclareLaunchArgument('gyro_bias_random_walk',  default_value = '1.7051032441876804e-06',description = 'standard deviation')
     radar_scale_random_walk_arg       = DeclareLaunchArgument('radar_scale_random_walk',default_value = '1.0e-6',   description = 'standard deviation')
 
     # Simulation scenario
@@ -72,11 +98,11 @@ def generate_launch_description():
     groundtruth_included_arg          = DeclareLaunchArgument('groundtruth_included',        default_value = 'false',description = '')
     radar_outlier_reject_arg          = DeclareLaunchArgument('radar_outlier_reject',        default_value = 'true', description = '')
     ros2_pub_rate_arg                 = DeclareLaunchArgument('ros2_pub_rate',               default_value = '30',   description = 'Hz')
-    coarse_alignment_window_size_arg  = DeclareLaunchArgument('coarse_alignment_window_size',default_value = '70', description = 'IMU step')
+    coarse_alignment_window_size_arg  = DeclareLaunchArgument('coarse_alignment_window_size',default_value = '100', description = 'IMU step')
 
     # Radar parameter
     min_distance_arg                  = DeclareLaunchArgument('min_distance',              default_value = '0.2',  description = '')
-    max_distance_arg                  = DeclareLaunchArgument('max_distance',              default_value = '300.0', description = '')
+    max_distance_arg                  = DeclareLaunchArgument('max_distance',              default_value = '100.0', description = '')
     min_db_arg                        = DeclareLaunchArgument('min_db',                    default_value = '19.0',   description = '')
     elevation_threshold_arg           = DeclareLaunchArgument('elevation_threshold',       default_value = '120.0',  description = '')
     azimuth_threshold_arg             = DeclareLaunchArgument('azimuth_threshold',         default_value = '120.0',  description = '')
@@ -100,9 +126,9 @@ def generate_launch_description():
     N_ransac_points_arg               = DeclareLaunchArgument('N_ransac_points', default_value = '3',    description = '')
     inlier_threshold_arg              = DeclareLaunchArgument('inlier_threshold',default_value = '0.15', description = '')
     
-    sigma_offset_radar_x_arg          = DeclareLaunchArgument('sigma_offset_radar_x',   default_value = '0.1',description = '')
-    sigma_offset_radar_y_arg          = DeclareLaunchArgument('sigma_offset_radar_y',   default_value = '0.1',description = '')
-    sigma_offset_radar_z_arg          = DeclareLaunchArgument('sigma_offset_radar_z',   default_value = '0.1',description = '')
+    sigma_offset_radar_x_arg          = DeclareLaunchArgument('sigma_offset_radar_x',   default_value = '0.3',description = '')
+    sigma_offset_radar_y_arg          = DeclareLaunchArgument('sigma_offset_radar_y',   default_value = '0.3',description = '')
+    sigma_offset_radar_z_arg          = DeclareLaunchArgument('sigma_offset_radar_z',   default_value = '0.3',description = '')
     outlier_percentil_radar_arg       = DeclareLaunchArgument('outlier_percentil_radar',default_value = '0.1',description = '')
     
     use_odr_arg                       = DeclareLaunchArgument('use_odr',               default_value = 'true', description = '')
@@ -113,7 +139,7 @@ def generate_launch_description():
     odr_inlier_threshold_arg          = DeclareLaunchArgument('odr_inlier_threshold',  default_value = '10',   description = '')
     
     # ICP
-    max_corres_dis_arg                = DeclareLaunchArgument('max_corres_dis',             default_value = '0.2',       description = '')
+    max_corres_dis_arg                = DeclareLaunchArgument('max_corres_dis',             default_value = '0.5',       description = '')
     max_iter_arg                      = DeclareLaunchArgument('max_iter',                   default_value = '100',       description = '')
     transform_eps_arg                 = DeclareLaunchArgument('transform_eps',              default_value = '0.0001',description = '')
     euclidean_fit_eps_arg             = DeclareLaunchArgument('euclidean_fit_eps',          default_value = '0.0001',description = '')
@@ -210,7 +236,48 @@ def generate_launch_description():
             'icp_std_y':                     launch.substitutions.LaunchConfiguration('icp_std_y'),
             'icp_std_z':                     launch.substitutions.LaunchConfiguration('icp_std_z'),
             'accel_angle_adapt':             launch.substitutions.LaunchConfiguration('accel_angle_adapt'),
-        }])
+        }],
+        #prefix=['xterm -e gdb -ex run --args']
+        )
+
+
+    odom_to_map = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name="odom_to_map_static",
+        parameters=[{"use_sim_time": True}],
+        arguments=[
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "world",
+            "map",
+        ],
+        respawn=True,
+        respawn_delay=10,
+    )
+
+
+    odom_eval_dero = Node(
+        package="localization_tools",
+        executable="odom2rpg_eval.py",
+        name="odom_eval_node",
+        namespace="odom",
+        parameters=[
+            {
+                "use_sim_time": True,
+                "file_name": "AR1_11_DERO4",
+                "file_path": "/home/ros/ws/results_ws/trajectory/seq11",
+            }
+        ],
+        remappings=[
+            ("/odom", "/odom_orb"),
+        ],
+    )
+
 
     return LaunchDescription([
         bag_dir_arg,
@@ -294,4 +361,5 @@ def generate_launch_description():
         icp_std_z_arg,
         accel_angle_adapt_arg,
         scekf_dero_ros2bag_node,
+        odom_to_map,
     ])
