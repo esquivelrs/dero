@@ -71,6 +71,8 @@
 #include <dero/scekf_dero.hpp>
 #include <dero/variable_define.hpp>
 
+#include <nav_msgs/msg/odometry.hpp>
+
 namespace incsl {
 
 class RunDeRO : public rclcpp::Node {
@@ -100,6 +102,7 @@ class RunDeRO : public rclcpp::Node {
     nav_msgs::msg::Path             pose_path_;
     nav_msgs::msg::Path             pose_path_gt_;
     geometry_msgs::msg::PoseStamped gt_msg;
+    nav_msgs::msg::Odometry         odom_msg;
 
     std::queue<sensor_msgs::msg::Imu>         queue_imu_buff;
     std::queue<sensor_msgs::msg::PointCloud2> queue_radar_buff;
@@ -268,6 +271,7 @@ class RunDeRO : public rclcpp::Node {
 
     pcl::PointCloud<RadarPointCloudType> first_window_radar_scan_inlier;
     pcl::PointCloud<RadarPointCloudType> end_radar_scan_inlier;
+    pcl::PointCloud<RadarPointCloudType>::Ptr map_cloud_;
 
     rclcpp::TimerBase::SharedPtr                                callback_timer_process_;
     rclcpp::TimerBase::SharedPtr                                viet_timer_;
@@ -279,9 +283,11 @@ class RunDeRO : public rclcpp::Node {
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr       imu_subscriber_;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr radar_subscriber_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr radar_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr radar_map_publisher_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr           pose_path_publisher_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr           pose_path_gt_publisher_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr         viet_publisher_;
+    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr       odom_publisher_;
 
     // rosbag2_cpp::StorageOptions   storage_options;
     // rosbag2_cpp::ConverterOptions converter_options;
@@ -311,8 +317,10 @@ class RunDeRO : public rclcpp::Node {
     void ImuCallback(const sensor_msgs::msg::Imu imu_msg);
     void RadarCallback(const sensor_msgs::msg::PointCloud2 radar_msg);
     void ShutdownHandler();
+    void BuildRadarMap();
     Eigen::Vector3d nedToEnu(const Eigen::Vector3d& ned);
     State transformStateNedToEnu(const State& state_ned);
+    Vec4d transformQuaternionNedToEnu(const Vec4d& quat_ned);
 }; // class RunDeRO
 } // namespace incsl
 

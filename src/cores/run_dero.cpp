@@ -22,55 +22,51 @@ using namespace std::chrono_literals;
 namespace incsl {
 
 RunDeRO::RunDeRO(const rclcpp::NodeOptions & options)
-: Node("run_dero", options) {
+: Node("run_dero", options)
+{
   RCLCPP_INFO(this->get_logger(), "Create a ROS2 Node!");
 
-  LoadParameters();  
-  
+  LoadParameters();
+
+  // Use default QoS and remove custom callback groups.
   rclcpp::SensorDataQoS qos;
   qos.best_effort();
   qos.keep_last(1);
-  
-  pub_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-  radar_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-  imu_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
-  rclcpp::SubscriptionOptions imu_sub_options;
-  imu_sub_options.callback_group = imu_callback_group_;
-  imu_subscriber_ = this->create_subscription<sensor_msgs::msg::Imu>("/input_imu", qos,
-                                                                    std::bind(&RunDeRO::ImuCallback, this, std::placeholders::_1),
-                                                                    imu_sub_options);
+  // Create subscriptions using default options.
+  imu_subscriber_ = this->create_subscription<sensor_msgs::msg::Imu>(
+    "/input_imu", qos,
+    std::bind(&RunDeRO::ImuCallback, this, std::placeholders::_1));
 
-  rclcpp::SubscriptionOptions radar_sub_options;
-  radar_sub_options.callback_group = radar_callback_group_;
-  radar_subscriber_ = this->create_subscription<sensor_msgs::msg::PointCloud2>("/input_radar", qos,
-                                                                              std::bind(&RunDeRO::RadarCallback, this, std::placeholders::_1),
-                                                                              radar_sub_options);
+  radar_subscriber_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
+    "/input_radar", qos,
+    std::bind(&RunDeRO::RadarCallback, this, std::placeholders::_1));
 
+  // Create TF broadcasters (unchanged)
   tf_broadcaster_pose_  = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
   tf_broadcaster_radar_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
   timer_period_ = 1000 / ros2_pub_rate_;
 
-  // rclcpp::PublisherOptions pub_options;
-  // pub_options.callback_group = pub_callback_group_;
-  viet_timer_ = this->create_wall_timer(60ms,
-                                        std::bind(&RunDeRO::MsgPublish, this), pub_callback_group_);
-
-  callback_timer_process_ = this->create_wall_timer(1ms, std::bind(&RunDeRO::Run, this), process_callback_group_);
+  // Create timers without specifying a callback group.
+  viet_timer_ = this->create_wall_timer(60ms, std::bind(&RunDeRO::MsgPublish, this));
+  // callback_timer_process_ = this->create_wall_timer(5ms, std::bind(&RunDeRO::Run, this));
 
   radar_publisher_        = this->create_publisher<sensor_msgs::msg::PointCloud2>("/radar_filtered_scan", qos);
   pose_path_publisher_    = this->create_publisher<nav_msgs::msg::Path>("/pose_path", qos);
   // pose_path_gt_publisher_ = this->create_publisher<nav_msgs::msg::Path>("/gt_path", qos);
+  radar_map_publisher_   = this->create_publisher<sensor_msgs::msg::PointCloud2>("incsl/radar_map", 10);
+  odom_publisher_        = this->create_publisher<nav_msgs::msg::Odometry>("incsl/odom", 10);
 
-  est_save.open(est_save_dir_);
+  map_cloud_ = std::make_shared<pcl::PointCloud<RadarPointCloudType>>();
+
+  est_save.open(est_save_dir_ + ".txt");
   if (!est_save.is_open()) {
     RCLCPP_ERROR(this->get_logger(), "Cannot open the file to save the estimation data!");
   }
 
   initialize_tf();
-
-} // RunDeRO
+}
 
 
 void RunDeRO::initialize_tf()
@@ -256,7 +252,7 @@ void RunDeRO::LoadParameters() {
   this->declare_parameter("icp_std_y", 0.0);
   this->declare_parameter("icp_std_z", 0.0);
   this->declare_parameter("accel_angle_adapt", 0.0);
-  this->declare_parameter("use_tf_from_params", false);
+  this->declare_parameter("use_tf_from_params", true);
 
   this->get_parameter("imu_topic", imu_topic_name_);
   this->get_parameter("radar_topic", radar_topic_name_);
@@ -484,7 +480,7 @@ void RunDeRO::LoadParameters() {
 } // void LoadParameters
 
 void RunDeRO::ImuCallback(const sensor_msgs::msg::Imu imu_msg) {
-  std::lock_guard<std::mutex> lock(imu_mutex_);
+  // std::lock_guard<std::mutex> lock(imu_mutex_);
   imu_data_received_ = true;
   RCLCPP_INFO_ONCE(this->get_logger(), "IMU: Data received!");
 
@@ -517,6 +513,8 @@ void RunDeRO::ImuCallback(const sensor_msgs::msg::Imu imu_msg) {
   sensor_msgs::msg::Imu transformed_msg = transformImuFrame(imu_msg, T_i_b_, robot_frame_id_);
 
   queue_imu_buff.push(transformed_msg);
+
+  Run();
 
 } // void ImuCallback
 
@@ -584,10 +582,20 @@ Eigen::Vector3d RunDeRO::nedToEnu(const Eigen::Vector3d& ned) {
 }
 
 State RunDeRO::transformStateNedToEnu(const State& state_ned) {
+
+    // position transform to base_link
+    // - Translation: [1.019, 0.012, -1.383] (m)
+    //before transforming to ENU, we need to transformt to base_link rotate the translation vector by the orientation quaternion
+    Eigen::Quaterniond quat(state_ned.quaternion(0, 0), state_ned.quaternion(1, 0), state_ned.quaternion(2, 0), state_ned.quaternion(3, 0));
+    Eigen::Vector3d translation(1.019, 0.012, -1.383);
+    Eigen::Vector3d rotated_translation = quat * translation;
+    // Transform the position
+    Eigen::Vector3d position = state_ned.position + rotated_translation;    
+
     State state_enu;
-    state_enu.position = nedToEnu(state_ned.position);
+    state_enu.position = nedToEnu(position);
     state_enu.velocity = nedToEnu(state_ned.velocity);
-    state_enu.quaternion = state_ned.quaternion; // Quaternion transformation is more complex and depends on the specific use case
+    state_enu.quaternion = transformQuaternionNedToEnu(state_ned.quaternion);
     state_enu.accel_bias = nedToEnu(state_ned.accel_bias);
     state_enu.gyro_bias = nedToEnu(state_ned.gyro_bias);
     state_enu.radar_scale = nedToEnu(state_ned.radar_scale);
@@ -595,7 +603,7 @@ State RunDeRO::transformStateNedToEnu(const State& state_ned) {
 }
 
 void RunDeRO::RadarCallback(const sensor_msgs::msg::PointCloud2 radar_msg) {
-  std::lock_guard<std::mutex> lock(radar_mutex_);
+  // std::lock_guard<std::mutex> lock(radar_mutex_);
   radar_data_received_ = true;
 
   RCLCPP_INFO_ONCE(this->get_logger(), "Radar: Data received!");
@@ -738,14 +746,14 @@ void RunDeRO::MsgPublish() {
   pose_transform_.header.frame_id = world_frame_id_;
   pose_transform_.child_frame_id  = robot_frame_id_;
 
-  pose_transform_.transform.translation.x = state_enu_.position(0, 0);
-  pose_transform_.transform.translation.y = state_enu_.position(1, 0);
-  pose_transform_.transform.translation.z = state_enu_.position(2, 0);
+  pose_transform_.transform.translation.x = state_.position(0, 0);
+  pose_transform_.transform.translation.y = state_.position(1, 0);
+  pose_transform_.transform.translation.z = state_.position(2, 0);
 
-  pose_transform_.transform.rotation.w = state_enu_.quaternion(0, 0);
-  pose_transform_.transform.rotation.x = state_enu_.quaternion(1, 0);
-  pose_transform_.transform.rotation.y = state_enu_.quaternion(2, 0);
-  pose_transform_.transform.rotation.z = state_enu_.quaternion(3, 0);
+  pose_transform_.transform.rotation.w = state_.quaternion(0, 0);
+  pose_transform_.transform.rotation.x = state_.quaternion(1, 0);
+  pose_transform_.transform.rotation.y = state_.quaternion(2, 0);
+  pose_transform_.transform.rotation.z = state_.quaternion(3, 0);
 
   tf_broadcaster_pose_->sendTransform(pose_transform_);
 
@@ -769,14 +777,14 @@ void RunDeRO::MsgPublish() {
 
     geometry_msgs::msg::PoseStamped pose_;
 
-    pose_.pose.position.x = state_enu_.position(0, 0);
-    pose_.pose.position.y = state_enu_.position(1, 0);
-    pose_.pose.position.z = state_enu_.position(2, 0);
+    pose_.pose.position.x = state_.position(0, 0);
+    pose_.pose.position.y = state_.position(1, 0);
+    pose_.pose.position.z = state_.position(2, 0);
 
-    pose_.pose.orientation.w = state_enu_.quaternion(0, 0);
-    pose_.pose.orientation.x = state_enu_.quaternion(1, 0);
-    pose_.pose.orientation.y = state_enu_.quaternion(2, 0);
-    pose_.pose.orientation.z = state_enu_.quaternion(3, 0);
+    pose_.pose.orientation.w = state_.quaternion(0, 0);
+    pose_.pose.orientation.x = state_.quaternion(1, 0);
+    pose_.pose.orientation.y = state_.quaternion(2, 0);
+    pose_.pose.orientation.z = state_.quaternion(3, 0);
 
     pose_.header.stamp    = stamp_now_;
     pose_.header.frame_id = world_frame_id_;
@@ -786,6 +794,37 @@ void RunDeRO::MsgPublish() {
     pose_path_.poses.push_back(pose_);
 
     pose_path_publisher_->publish(pose_path_);
+  
+    if (use_radar) {
+      // BuildRadarMap();
+      sensor_msgs::msg::PointCloud2 map_cloud_msg;
+      pcl::toROSMsg(*map_cloud_, map_cloud_msg);
+      map_cloud_msg.header.frame_id = "map";
+      map_cloud_msg.header.stamp    = stamp_now_;
+      radar_map_publisher_->publish(map_cloud_msg);
+    }
+
+    // state_enu_ = transformStateNedToEnu(state_);
+
+    Eigen::Quaterniond quat(state_.quaternion(0, 0), state_.quaternion(1, 0), state_.quaternion(2, 0), state_.quaternion(3, 0));
+    Eigen::Vector3d translation(1.019, 0.012, -1.383);
+    Eigen::Vector3d rotated_translation = quat * translation;
+
+    nav_msgs::msg::Odometry odom_msg;
+    odom_msg.header.stamp = stamp_now_;
+    odom_msg.header.frame_id = "map";
+    odom_msg.child_frame_id = "base_link";
+    odom_msg.pose.pose.position.x = state_.position(0, 0) + rotated_translation.x();
+    odom_msg.pose.pose.position.y = state_.position(1, 0) + rotated_translation.y();
+    odom_msg.pose.pose.position.z = state_.position(2, 0) + rotated_translation.z();
+    odom_msg.pose.pose.orientation.w = state_.quaternion(0, 0);
+    odom_msg.pose.pose.orientation.x = state_.quaternion(1, 0);
+    odom_msg.pose.pose.orientation.y = state_.quaternion(2, 0);
+    odom_msg.pose.pose.orientation.z = state_.quaternion(3, 0);
+
+    // publish the message
+    odom_publisher_->publish(odom_msg);   
+  
   } // if
 } // void MsgPublish
 
@@ -801,6 +840,24 @@ void RunDeRO::ShutdownHandler() {
     state_ = ekf_rio_.getState();
   } else {
     state_ = scekf_dero_.getState();
+  }
+
+  // save the map in a pcd file
+  if (use_radar) {
+      try {
+          // Ensure cloud is unorganized (width = total points, height = 1)
+          map_cloud_->width = map_cloud_->points.size();
+          map_cloud_->height = 1;
+          map_cloud_->is_dense = false;
+
+          if (pcl::io::savePCDFileASCII(est_save_dir_ + ".pcd", *map_cloud_) == -1) {
+              RCLCPP_ERROR(this->get_logger(), "Failed to save PCD file");
+          } else {
+              RCLCPP_INFO_ONCE(this->get_logger(), "Map saved in %s.pcd", est_save_dir_.c_str());
+          }
+      } catch (const pcl::IOException& e) {
+          RCLCPP_ERROR(this->get_logger(), "Error saving PCD: %s", e.what());
+      }
   }
 
   // clang-format off
@@ -822,6 +879,77 @@ void RunDeRO::ShutdownHandler() {
 
   rclcpp::shutdown();
 } // void ShutdownHandler
+
+
+
+Vec4d RunDeRO::transformQuaternionNedToEnu(const Vec4d& quat_ned) {
+    // Input quaternion is in [w,x,y,z] order
+    double w = quat_ned(0);
+    double x = quat_ned(1); 
+    double y = quat_ned(2);
+    double z = quat_ned(3);
+
+    // Convert NED to ENU
+    Vec4d quat_enu;
+    quat_enu(0) = w;  // w
+    quat_enu(1) = y;  // x in ENU = y in NED 
+    quat_enu(2) = x;  // y in ENU = x in NED
+    quat_enu(3) = -z; // z in ENU = -z in NED
+    
+    return quat_enu;
+}
+
+
+void RunDeRO::BuildRadarMap(){
+  sensor_msgs::msg::PointCloud2 matched_corr = radar_estimator_.getMatchedCorrespondencesMsg();
+
+  if(matched_corr.data.empty()){
+    RCLCPP_WARN(this->get_logger(), "No matched correspondences found!");
+    return;
+  }
+  
+  if (!use_dr_structure)
+    state_ = ekf_rio_.getState();
+  else
+    state_ = scekf_dero_.getState();             
+  // add the matched correspondences to the map for visualization
+
+  Eigen::Vector3d position = state_.position;
+  Eigen::Quaterniond orientation(state_.quaternion(0, 0),  // w
+                                  state_.quaternion(1, 0),  // x
+                                  state_.quaternion(2, 0),  // y
+                                  state_.quaternion(3, 0)); // z
+  
+  // i need this rotated 180 degrees around the z axis
+  Eigen::AngleAxisd rotation(M_PI, Eigen::Vector3d::UnitZ());
+  orientation = orientation * rotation;
+
+
+  // Create transformation matrix
+  Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
+  transform.block<3,3>(0,0) = orientation.toRotationMatrix().cast<float>();
+  transform.block<3,1>(0,3) = position.cast<float>();
+  
+  // TODO: Change this to RadarPointCloudType
+  pcl::PointCloud<RadarPointCloudType>::Ptr pcl_corr(new pcl::PointCloud<RadarPointCloudType>);
+  pcl::fromROSMsg(matched_corr, *pcl_corr);
+  
+  // Transform the point cloud using the state-derived transform
+  pcl::PointCloud<RadarPointCloudType>::Ptr transformed_corr(new pcl::PointCloud<RadarPointCloudType>);
+  pcl::transformPointCloud(*pcl_corr, *transformed_corr, transform);
+  
+  // Accumulate transformed points into the map
+  if(map_cloud_ && transformed_corr){
+    map_cloud_->points.insert(map_cloud_->points.end(), transformed_corr->points.begin(), transformed_corr->points.end());
+    map_cloud_->header = transformed_corr->header;
+  } else {
+    RCLCPP_ERROR(this->get_logger(), "map_cloud_ or transformed_corr is null!");
+  }
+
+
+
+}
+
 
 void RunDeRO::Run() {
 
@@ -1216,6 +1344,7 @@ void RunDeRO::Run() {
               if (scekf_dero_.RadarMeasurementUpdate(imu_radar_calibration_, icp_meas, radar_outlier_reject,
                                                       first_window, r_accel, H_accel)) {
                 measurement_update_radar_trigger = true;
+                BuildRadarMap();
               } else {
                 RCLCPP_WARN(this->get_logger(),
                             "EKF: Measurement update step is rejected because ICP failed Chi-squared test!");
@@ -1284,23 +1413,23 @@ void RunDeRO::Run() {
     }
 
     for (int i = 0; i < 3; ++i)
-      est_save << state_enu_.position(i, 0) << " ";
+      est_save <<state_.position(i, 0) << " ";
 
     const bool rpg_save = true;
 
     if (!use_dr_structure && !rpg_save)
       for (int i = 0; i < 3; ++i)
-        est_save << state_enu_.velocity(i, 0) << " ";
+        est_save << state_.velocity(i, 0) << " ";
 
     if (!rpg_save) {
       for (int i = 0; i < 4; ++i)
-        est_save << state_enu_.quaternion(i, 0) << " ";
+        est_save << state_.quaternion(i, 0) << " ";
     } else {
       // clang-format off
-      est_save << state_enu_.quaternion(1, 0) << " "
-                << state_enu_.quaternion(2, 0) << " "
-                << state_enu_.quaternion(3, 0) << " "
-                << state_enu_.quaternion(0, 0) << std::endl;
+      est_save << state_.quaternion(1, 0) << " "
+                << state_.quaternion(2, 0) << " "
+                << state_.quaternion(3, 0) << " "
+                << state_.quaternion(0, 0) << std::endl;
       // clang-format on
     }
 

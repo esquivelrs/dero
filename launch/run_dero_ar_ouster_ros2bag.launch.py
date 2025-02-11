@@ -46,13 +46,26 @@ def generate_launch_description():
     
 
     # sequence 11
-    # est_save_dir_arg = DeclareLaunchArgument('est_save_dir',default_value = '/home/ros/ws/results_ws/trajectory/seq11/AR1_11_DeRO4',description = '')
+    est_save_dir_arg = DeclareLaunchArgument('est_save_dir',default_value = '/home/ros/ws/results_ws/trajectory/seq11/AR1_11_DeRO_test',description = '')
     # bag_dir_arg      = DeclareLaunchArgument('bag_dir',     default_value = '/home/ros/rosbags_shared/agrirobot_agrirobot_reproducible_setup_bosch_bottom_2024-11-18-17-13-31_0.mcap',description = '');
     
     # # sequence 12
-    est_save_dir_arg = DeclareLaunchArgument('est_save_dir',default_value = '/home/ros/ws/results_ws/trajectory/seq12/AR1_12_DeRO',description = '')
-    bag_dir_arg      = DeclareLaunchArgument('bag_dir',     default_value = '/home/ros/rosbags_shared/agrirobot_agrirobot_reproducible_setup_bosch_bottom_2024-11-18-14-45-46_0.mcap',description = '');
+    # est_save_dir_arg = DeclareLaunchArgument('est_save_dir',default_value = '/home/ros/ws/results_ws/trajectory/seq12/AR1_12_DeRO',description = '')
+    # bag_dir_arg      = DeclareLaunchArgument('bag_dir',     default_value = '/home/ros/rosbags_shared/agrirobot_agrirobot_reproducible_setup_bosch_bottom_2024-11-18-14-45-46_0.mcap',description = '');
         
+
+    # world_frame_id: "world"
+    # radar_frame_id: "tractor_radar_bosch_bottom"
+    # imu_frame_id: "tractor_gnss_left_imu"
+    # robot_frame_id: "base_link"
+    # use_tf_from_params: true
+    world_frame_id_arg = DeclareLaunchArgument('world_frame_id', default_value = 'world',description = '')
+    radar_frame_id_arg = DeclareLaunchArgument('radar_frame_id', default_value = 'tractor_radar_bosch_bottom',description = '')
+    imu_frame_id_arg   = DeclareLaunchArgument('imu_frame_id',   default_value = 'tractor_gnss_left_imu',description = '')
+    robot_frame_id_arg = DeclareLaunchArgument('robot_frame_id', default_value = 'base_link',description = '')
+    use_tf_from_params_arg = DeclareLaunchArgument('use_tf_from_params', default_value = 'true',description = '')
+
+
 
     
     storage_id_arg   = DeclareLaunchArgument('storage_id',  default_value = 'mcap',description = '')
@@ -143,7 +156,7 @@ def generate_launch_description():
     max_iter_arg                      = DeclareLaunchArgument('max_iter',                   default_value = '100',       description = '')
     transform_eps_arg                 = DeclareLaunchArgument('transform_eps',              default_value = '0.0001',description = '')
     euclidean_fit_eps_arg             = DeclareLaunchArgument('euclidean_fit_eps',          default_value = '0.0001',description = '')
-    cloning_window_size_arg           = DeclareLaunchArgument('cloning_window_size',        default_value = '5',         description = '')
+    cloning_window_size_arg           = DeclareLaunchArgument('cloning_window_size',        default_value = '10',         description = '')
     window_slicing_arg                = DeclareLaunchArgument('window_slicing',             default_value = 'false',     description = '')
     ransac_outlier_reject_thres_arg   = DeclareLaunchArgument('ransac_outlier_reject_thres',default_value = '0.01',      description = '')  
     icp_std_x_arg                     = DeclareLaunchArgument('icp_std_x',                  default_value = '0.5',       description = 'variance')  
@@ -151,9 +164,9 @@ def generate_launch_description():
     icp_std_z_arg                     = DeclareLaunchArgument('icp_std_z',                  default_value = '0.5',       description = 'variance')  
     accel_angle_adapt_arg             = DeclareLaunchArgument('accel_angle_adapt',          default_value = '2.0',       description = '')  
 
-    scekf_dero_ros2bag_node = Node(
+    scekf_dero_node = Node(
         package='dero',
-        executable='scekf_dero_ros2bag_node',
+        executable='scekf_dero_node',
         output='screen',
         parameters=[{
             'imu_topic':                     launch.substitutions.LaunchConfiguration('imu_topic'),
@@ -230,13 +243,22 @@ def generate_launch_description():
             'transform_eps':                 launch.substitutions.LaunchConfiguration('transform_eps'),
             'euclidean_fit_eps':             launch.substitutions.LaunchConfiguration('euclidean_fit_eps'),
             'window_slicing':                launch.substitutions.LaunchConfiguration('window_slicing'),
-            'bag_dir':                       launch.substitutions.LaunchConfiguration('bag_dir'),
             'storage_id':                    launch.substitutions.LaunchConfiguration('storage_id'),
             'icp_std_x':                     launch.substitutions.LaunchConfiguration('icp_std_x'),
             'icp_std_y':                     launch.substitutions.LaunchConfiguration('icp_std_y'),
             'icp_std_z':                     launch.substitutions.LaunchConfiguration('icp_std_z'),
             'accel_angle_adapt':             launch.substitutions.LaunchConfiguration('accel_angle_adapt'),
+            'world_frame_id':                launch.substitutions.LaunchConfiguration('world_frame_id'),
+            'radar_frame_id':                launch.substitutions.LaunchConfiguration('radar_frame_id'),
+            'imu_frame_id':                  launch.substitutions.LaunchConfiguration('imu_frame_id'),
+            'robot_frame_id':                launch.substitutions.LaunchConfiguration('robot_frame_id'),
+            'use_tf_from_params':            launch.substitutions.LaunchConfiguration('use_tf_from_params'),
+            'use_sim_time':                  True,
         }],
+        remappings=[
+            ("/input_imu", "/tractor/lidar/front/imu/sync"), # /sensor_platform/imu /tractor/lidar/front/imu/sync
+            ("/input_radar", "/tractor/radar/bosch/bottom/points/sync"),
+        ],
         #prefix=['xterm -e gdb -ex run --args']
         )
 
@@ -280,7 +302,12 @@ def generate_launch_description():
 
 
     return LaunchDescription([
-        bag_dir_arg,
+        # bag_dir_arg,
+        world_frame_id_arg,
+        radar_frame_id_arg,
+        imu_frame_id_arg,
+        robot_frame_id_arg,
+        use_tf_from_params_arg,
         storage_id_arg,
         imu_topic_arg,
         radar_topic_arg,
@@ -360,6 +387,6 @@ def generate_launch_description():
         icp_std_y_arg,
         icp_std_z_arg,
         accel_angle_adapt_arg,
-        scekf_dero_ros2bag_node,
+        scekf_dero_node,
         odom_to_map,
     ])

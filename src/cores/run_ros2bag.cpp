@@ -130,6 +130,8 @@ RunRos2Bag::RunRos2Bag(std::string node_name) : rclcpp::Node(node_name) {
   pose_path_gt_publisher_ = this->create_publisher<nav_msgs::msg::Path>("incsl/gt_path", 10);
   radar_map_publisher_   = this->create_publisher<sensor_msgs::msg::PointCloud2>("incsl/radar_map", 10);
   odom_publisher_        = this->create_publisher<nav_msgs::msg::Odometry>("incsl/odom", 10);
+  // /tractor/camera/front_center/image_raw/compressed
+  camera_publisher_ = this->create_publisher<sensor_msgs::msg::CompressedImage>("/tractor/camera/front_center/image_raw/compressed", 10);
 
   map_cloud_ = std::make_shared<pcl::PointCloud<RadarPointCloudType>>();
   est_save.open(est_save_dir_ + ".txt");
@@ -765,6 +767,13 @@ State RunRos2Bag::transformStateNedToEnu(const State& state_ned) {
     return state_enu;
 }
 
+void RunRos2Bag::CameraCallback(const sensor_msgs::msg::CompressedImage camera_msg) {
+  // camera_data_received_ = true;
+  RCLCPP_INFO_ONCE(this->get_logger(), "Camera: Data received!");
+
+  camera_publisher_->publish(camera_msg);
+} // void CameraCallback
+
 void RunRos2Bag::BuildRadarMap(){
   sensor_msgs::msg::PointCloud2 matched_corr = radar_estimator_.getMatchedCorrespondencesMsg();
 
@@ -826,10 +835,12 @@ void RunRos2Bag::Run() {
   rclcpp::Serialization<sensor_msgs::msg::Imu>           serialization_imu;
   rclcpp::Serialization<sensor_msgs::msg::PointCloud2>   serialization_radar;
   rclcpp::Serialization<geometry_msgs::msg::PoseStamped> serialization_gt;
+  rclcpp::Serialization<sensor_msgs::msg::CompressedImage>   serialization_camera;
 
   sensor_msgs::msg::Imu           extracted_imu_msg;
   sensor_msgs::msg::PointCloud2   extracted_radar_msg;
   geometry_msgs::msg::PoseStamped extracted_gt_msg;
+  sensor_msgs::msg::CompressedImage extracted_camera_msg;
 
   while (reader.has_next()) {
     auto                      bag_message = reader.read_next();
@@ -850,6 +861,9 @@ void RunRos2Bag::Run() {
       serialization_gt.deserialize_message(&extracted_serialized_msg, &extracted_gt_msg);
       gt_msg                     = extracted_gt_msg;
       groundtruth_data_received_ = true;
+    } else if (bag_message->topic_name == "/tractor/camera/front_center/image_raw/compressed") {
+      serialization_camera.deserialize_message(&extracted_serialized_msg, &extracted_camera_msg);
+      RunRos2Bag::CameraCallback(extracted_camera_msg);
     }
 
     if (!queue_imu_buff.empty()) {
@@ -1356,6 +1370,8 @@ void RunRos2Bag::Run() {
       measurement_update_accel_trigger = false;
     } // if save
   
+  // add sleep 0.5 ms
+  std::this_thread::sleep_for(std::chrono::microseconds(300));
   }
   RunRos2Bag::ShutdownHandler();
 } // void Run

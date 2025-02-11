@@ -46,6 +46,7 @@
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/msg/compressed_image.hpp>
 
 #include <std_msgs/msg/string.hpp>
 
@@ -269,6 +270,7 @@ class RunRos2Bag : public rclcpp::Node {
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr           pose_path_gt_publisher_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr         viet_publisher_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr       odom_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr camera_publisher_;
 
 
     // rosbag2_cpp::StorageOptions   storage_options;
@@ -283,6 +285,7 @@ class RunRos2Bag : public rclcpp::Node {
     void MsgPublish();
     void ImuCallback(const sensor_msgs::msg::Imu imu_msg);
     void RadarCallback(const sensor_msgs::msg::PointCloud2 radar_msg);
+    void CameraCallback(const sensor_msgs::msg::CompressedImage camera_msg);
     void BuildRadarMap();
     void ShutdownHandler();
     Eigen::Vector3d nedToEnu(const Eigen::Vector3d& ned);
