@@ -1,3 +1,28 @@
+
+#
+This is a modify version of DeRO, for ROS2 Humble with adaptations for AgriRobot.
+
+
+<img src='images/map_dero_seq11.png' width='300' height='250'>  <img src='images/map_dero_seq11_angle.png' width='450' height='250'>
+
+To execute AR bags, in internal rosbag play, modify the path in dero_ar_ouster_ros2bag.launch.py and run
+```bash
+ros2 launch dero dero_ar_ouster_ros2bag.launch.py
+```
+
+To execute with a external rosbag play:
+
+```bash
+ros2 launch dero run_dero_ar_ouster_ros2bag.launch.py
+```
+Then play the bag
+
+
+Open rviz configuration: dero_carried_1.rviz
+
+
+
+# Original README
 # DeRO
 ## Dead Reckoning Based on Radar Odometry With Accelerometers Aided for Robot Localization
 ## News / Events
